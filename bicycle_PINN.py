@@ -6,14 +6,17 @@ import time
 
 class bicycle_PINN:
     
-    def __init__(self,df,layers):
+    def __init__(self,df):
         
         #Predict future states passing initial points and set of controls
 
-        self.layers = layers
-        
         # Initialize NN
-        self.weights, self.biases = self.initialize_NN(layers)
+        self.df = df
+        self.states = df[['x','y','speed_x','speed_y','heading']]
+        self.control = df[["accel_x","accel_y","ang_speed","timestamp_posix"]]
+        self.act = "tanh"
+        self.n_nodes = 10
+        self.weights, self.biases = self.initialize_NN(self,self.n_nodes,self.act)
 
         self.t = df["timestamp_posix"]
         self.id = df['temporaryId']
@@ -121,7 +124,19 @@ class bicycle_PINN:
         Y = tf.add(tf.matmul(H, W), b)
         return Y
 
-    def initialize_NN(self, layers):        
+    def initialize_NN(self,input_size,output_size,nodes,act,):  
+        
+
+        LBw = -3
+        UBw = 3
+        LBb = -3
+        UBb = 3
+
+        if act=="tanh":
+             W = tf.random.uniform(shape=(input_size,nodes) ,minval=LBw,maxval=UBw)
+             b = tf.random.uniform(shape=nodes ,minval=LBb,maxval=UBb)
+
+
         weights = []
         biases = []
         num_layers = len(layers) 
