@@ -6,14 +6,19 @@ import time
 
 class bicycle_PINN:
     
-    def __init__(self,df):
+    def __init__(self,df,mod_type):
         
         #Predict future states passing initial points and set of controls
 
         # Initialize NN
         self.df = df
-        self.states = df[['x','y','speed_x','speed_y','heading']]
-        self.control = df[["accel_x","accel_y","ang_speed","timestamp_posix"]]
+
+        if mod_type=="reg":
+            self.states = df[['x','y','speed','heading','steering_angle']]
+            self.control = df[["accel","accel_y","ang_speed","timestamp_posix"]]
+        elif mod_type=="lin":     
+        
+        
         self.act = "tanh"
         self.n_nodes = 10
         self.weights, self.biases = self.initialize_NN(self,self.n_nodes,self.act)

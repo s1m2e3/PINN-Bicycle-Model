@@ -137,8 +137,8 @@ def main():
     df_reg = prep_df_reg(df)
     states_reg = test_ode_reg(df_reg)
     states_lin =test_ode_reg(df_lin)
-    #df_reg = prep_df_reg(df)
-    #pinn = bicycle_PINN(df_lin)
+    pinn_reg = bicycle_PINN(df_lin,"reg")
+    pinn_reg = bicycle_PINN(df_lin,"lin")
 
 
 if __name__=="__main__":
