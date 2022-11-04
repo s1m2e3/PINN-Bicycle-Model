@@ -42,7 +42,7 @@ class bicycle_PINN:
 
         elif mod_type=="lin":     
             self.states = df[['x','y','speed','heading','steering_angle']]
-            self.control = df[["accel","accel_y","ang_speed","timestamp_posix"]]
+            self.control = df[["accel_x","accel_y","ang_speed","timestamp_posix"]]
             self.XTFC = self.XTFC(self.control.shape,self.states.shape)
             self.loss = self.loss(mod_type)
             self.optimizer = self.optimizer = tf.contrib.opt.ScipyOptimizerInterface(self.loss, 
@@ -70,15 +70,47 @@ class bicycle_PINN:
         ub = X.min(0)
         lb = X.max(0)
         H =  2.0*(X - lb)/(ub - lb) - 1.0
-
         preds = tf.tensor(shape=(control_shape[0],states_shape[1]))
         for i in range(len(X)):
-            prev = tf.tanh(tf.add(tf.matmul(self.W,X[i]),self.b))
+            prev = tf.tanh(tf.add(tf.matmul(self.W,H[i]),self.b))
             for j in range(len(self.betas)):
                 preds[i,j]=tf.matmul(prev,beta[j])
 
         if mod_type=="reg":
-            for i in range(len(control)):
-                state
+            for i in range(len(X)):
+                
+                x_t = tf.gradients(preds,preds[:,0])
+                y_t = tf.gradients(preds,preds[:,1])
+                v_t = tf.gradients(preds,preds[:,2])
+                theta_t = tf.gradients(preds,preds[:,3])
+                delta_t = tf.gradients(preds,preds[:,4])
+                
+                f1 = x_t - preds[:,2]*tf.cos(preds[:,3])
+                f2 = y_t - preds[:,2]*tf.sin(preds[:,3])
+                f3 = v_t - X[:,0]
+                f4 = theta_t - preds[:,2]*tf.tan(preds[:,4])/X[:,2]
+                f5 = delta_t - X[:,1]
 
+                b = preds[0:] - X[0:]
+                
+                return preds, [f1,f2,f3,f4,f5],b
+        
         elif mod_type=="lin":
+
+            for i in range(len(X)):
+                
+                x_t = tf.gradients(preds,preds[:,0])
+                y_t = tf.gradients(preds,preds[:,1])
+                x_tt = tf.gradients(preds,preds[:,2])
+                y_tt = tf.gradients(preds,preds[:,3])
+                theta_t = tf.gradients(preds,preds[:,4])
+                
+                f1 = preds[:,0] - X[:,0]
+                f2 = y_t - X[:,0]
+                f3 = v_t - X[:,0]
+                f4 = theta_t - X[:,0]
+                f5 = delta_t - X[:,0]
+
+                b = preds[0:] - X[0:]
+                
+                return preds, [f1,f2,f3,f4,f5],b
