@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from scipy.integrate import solve_ivp
+from bicycle_PINN import bicycle_PINN
 import datetime
 #import bicycle_PINN
 import utm
@@ -135,13 +136,11 @@ def main():
     df['y']=y
     df_lin = prep_df_lin(df)
     df_reg = prep_df_reg(df)
-    print(df_reg['steering_angle'].unique())
-    print(df_reg['steering_angle_rate'].unique())
     
     #states_reg = test_ode_reg(df_reg)
     #states_lin =test_ode_reg(df_lin)
     #pinn_reg = bicycle_PINN(df_lin,"reg")
-    #pinn_reg = bicycle_PINN(df_lin,"lin")
+    pinn_reg = bicycle_PINN(df_reg,"reg")
 
 
 if __name__=="__main__":

@@ -27,18 +27,15 @@ class bicycle_PINN:
             states_train=self.states.loc[:int(len(self.states)*self.ratio)]
             states_test=self.states.loc[int(len(self.states)*self.ratio):]
 
-            states_pred,funcs_pred=self.preds(mod_type,self.act,self.control_train,self.states.shape)
+            states_pred,funcs_pred,bound_pred=self.preds(mod_type,self.act,control_train,states_train)
+            self.loss = tf.reduce_mean(tf.square(states_pred-states_train)+\
+                        tf.square(funcs_pred)+tf.square(bound_pred))
 
-            self.optimizer = tf.contrib.opt.ScipyOptimizerInterface(self.loss, 
-                                                                method = 'L-BFGS-B', 
-                                                                options = {'maxiter': 50000,
-                                                                           'maxfun': 50000,
-                                                                           'maxcor': 50,
-                                                                           'maxls': 50,
-                                                                           'ftol' : 1.0 * np.finfo(float).eps})
-            
-            
+            self.optimizer = tf.keras.optimizers.SGD()
+            self.optimizer.minimize(self.loss,self.betas)
 
+            print("test")
+                
         elif mod_type=="lin":     
             self.states = df[['x','y','speed','heading','steering_angle']]
             self.control = df[["accel_x","accel_y","ang_speed","timestamp_posix"]]
@@ -52,6 +49,8 @@ class bicycle_PINN:
                                                                            'maxls': 50,
                                                                            'ftol' : 1.0 * np.finfo(float).eps})
 
+
+
     def XTFC(self,control_shape,states_shape,n_nodes):
 
         LBw = -3
@@ -61,22 +60,38 @@ class bicycle_PINN:
         
         self.W = tf.random.uniform((n_nodes,control_shape[1]),minval=LBw,maxval=UBw)
         self.b = tf.random.uniform((n_nodes,1),minval=LBw,maxval=UBw)
-        self.betas = [tf.Variable(1., shape=tf.TensorShape(n_nodes,1)) for i in states_shape[1]]
+        self.betas=[]
+        for i in range(states_shape[1]):
+            self.betas.append(tf.Variable(np.ones((n_nodes,1)), shape=tf.TensorShape((n_nodes,1)),dtype="float32"))
 
-    def preds(self,mod_type,activation_function,control,states):
-        states_shape = states.shape
-        u0 = np.array(states.loc[0])
-        X = np.array(control)
+    def XTFC_pred(self,X,shape_):
+        preds = []
         ub = X.min(0)
         lb = X.max(0)
         H =  2.0*(X - lb)/(ub - lb) - 1.0
-        preds = tf.tensor(shape=(control.shape[0],states_shape[1]))
         for i in range(len(X)):
             prev = tf.tanh(tf.add(tf.matmul(self.W,H[i]),self.b))
+            sub = []
             for j in range(len(self.betas)):
-                preds[i,j]=tf.matmul(prev,self.betas[j])
+                print(np.matmul(prev,np.array(self.betas[j])).T)
+                mult= tf.tensordot(prev,self.betas[j],axes=0)
+                sub.append(mult)
+            preds.append(sub)
+        preds=np.array(preds)
+        print(preds.shape)
+        preds=preds.reshape((len(X),len(self.betas)))
+        preds=tf.stack(preds)
+        return preds
 
+    def preds(self,mod_type,activation_function,control,states):
+
+        states_shape = states.shape
+        u0 = np.array(states.loc[0])
+        X = np.array(control)
+        preds = self.XTFC_pred(X,(X.shape[0],states_shape[1]))
+        
         if mod_type=="reg":
+
             for i in range(len(X)):
                 
                 x_t = tf.gradients(preds[:,0],X[:,4])
@@ -84,24 +99,20 @@ class bicycle_PINN:
                 v_t = tf.gradients(preds[:,2],X[:,4])
                 theta_t = tf.gradients(preds[:,3],X[:,4])
                 delta_t = tf.gradients(preds[:,4],X[:,4])
-                '''
-                a_x(t) = d2x/d2t=d2H/d2tB_x
-                v_x(t) = d2H/d2tB_x*t+v0-dH/dtB_x0 = HB_v(t)
-                x(t) = x0-HB_x0+v0t-dH/dtB_x0t+1/2d2H/d2tB_xt^2 = HB_x(t)
+                
+                f1 = x_t-preds[:,2]*tf.cos(preds[:,3])
+                f2 = y_t-preds[:,2]*tf.sin(preds[:,3])
+                f3 = v_t - X[:,0]
+                f4 = theta_t - preds[:2]*tf.tan(preds[:4])/X[:2]
+                f5 = delta_t - X[:,1]
 
-                omega(t) = ((d2H/d2tB_x*t+v0-dH/dtB_x0)^2+(d2H/d2tB_y*t+v0-dH/dtB_y0)^2)^2/r
-                delta(t) = dH/dtB_delta*t +delta0 - dH/dtB_delta0
-                '''
+                b1 = preds[:,0] - u0[0]
+                b2 = preds[:,1] - u0[1]
+                b3 = preds[:,2] - u0[2]
+                b4 = preds[:,3] - u0[3]
+                b5 = preds[:,4] - u0[4]
                 
-                f1 = preds[:,0]-(u0[0]-preds[0,0])-(u0[2]*np.cos(preds[:,3])\
-                        -x_t[0])*X[:,3]-(1/2*v_t*np.power(X[:,3],2)*np.cos(preds[:,3]))
-
-                f2 = preds[:,1]-(u0[1]-preds[0,1])-(u0[2]*np.sin(preds[:,3])\
-                        -y_t[0])*X[:,3]-(1/2*v_t*np.power(X[:,3],2)*np.sin(preds[:,3]))
-                
-                f3 = preds[:,3]-(u0[3]-theta_t)
-                
-                return preds, [f1,f2,f3]
+                return preds, [f1,f2,f3,f4,f5],[b1,b2,b3,b4,b5]
         
         elif mod_type=="lin":
 
