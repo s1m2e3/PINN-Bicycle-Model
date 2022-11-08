@@ -43,9 +43,9 @@ class bicycle_PINN:
         UBw = 3
         UBb = 3
         
-        self.W = tf.random.uniform((n_nodes,control_shape[1]),minval=LBw,maxval=UBw)
-        self.b = tf.random.uniform((n_nodes,1),minval=LBb,maxval=UBb)
-        self.betas = [tf.Variable(1., shape=tf.TensorShape(n_nodes,1)) for i in states_shape[1]]
+        self.W = tf.random.uniform((n_nodes,control_shape[1]),minval=LBw,maxval=UBw,dtype='float32')
+        self.b = tf.random.uniform((n_nodes,1),minval=LBb,maxval=UBb,dtype='float32')
+        self.betas = [tf.Variable(np.ones((n_nodes,1)), shape=tf.TensorShape((n_nodes,1)),dtype='float32') for i in range(states_shape[1])]
         #self.lambdas = [(tf.Variable(1.),tf.Variable(1)) for i in states_shape[1]]
 
     def preds(self,activation_function,control,states):
@@ -56,15 +56,15 @@ class bicycle_PINN:
         ub = X.min(0)
         lb = X.max(0)
         H =  2.0*(X - lb)/(ub - lb) - 1.0
-        preds = tf.tensor(shape=(control.shape[0],states_shape[1]))
-        for i in range(len(X)):
+        preds = []
+        for i in range(len(H)):
+            preds.append([])
             if activation_function =="tanh":
-                prev = tf.tanh(tf.add(tf.matmul(self.W,H[i]),self.b))
+                prev = tf.tanh(tf.add(tf.matmul(self.W,[H[i,:]],transpose_b=True),self.b))
                 for j in range(len(self.betas)):
-                    preds[i,j]=tf.matmul(prev,self.betas[j])
-
-    
-        
+                    preds[i]=tf.matmul(prev,self.betas[j],transpose_a=True)
+        preds = tf.stack(preds)
+                    
         x_t = tf.gradients(preds[:,0],X[:,4])
         y_t = tf.gradients(preds[:,1],X[:,4])
         x_tt = tf.gradients(preds[:,2],X[:,4])
