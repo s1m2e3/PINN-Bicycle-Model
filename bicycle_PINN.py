@@ -1,4 +1,4 @@
-import tensorflow as tf
+import torch
 import numpy as np
 import pandas as pd
 import time
@@ -42,12 +42,11 @@ class bicycle_PINN:
         LBb = -3
         UBw = 3
         UBb = 3
-        
-        self.W = tf.random.uniform((n_nodes,control_shape[1]),minval=LBw,maxval=UBw,dtype='float32')
-        self.b = tf.random.uniform((n_nodes,1),minval=LBb,maxval=UBb,dtype='float32')
-        self.betas = [tf.Variable(np.ones((n_nodes,1)), shape=tf.TensorShape((n_nodes,1)),dtype='float32') for i in range(states_shape[1])]
-        #self.lambdas = [(tf.Variable(1.),tf.Variable(1)) for i in states_shape[1]]
 
+        self.W=torch.tensor(np.random.uniform(low=LBw,high=UBw,size=(n_nodes,control_shape[1]))).float()
+        self.b=torch.tensor(np.random.uniform(low=LBb,high=UBb,size=(n_nodes))).float()
+        self.betas = torch.tensor(np.random.uniform(size=(states_shape[1],n_nodes)),requires_grad=True).float()
+        
     def preds(self,activation_function,control,states):
         
         states_shape = states.shape
@@ -55,29 +54,46 @@ class bicycle_PINN:
         X = np.array(control)
         ub = X.min(0)
         lb = X.max(0)
-        H =  2.0*(X - lb)/(ub - lb) - 1.0
+        H =  torch.tensor(X).float()
         preds = []
         for i in range(len(H)):
             preds.append([])
             if activation_function =="tanh":
-                prev = tf.tanh(tf.add(tf.matmul(self.W,[H[i,:]],transpose_b=True),self.b))
-                for j in range(len(self.betas)):
-                    preds[i]=tf.matmul(prev,self.betas[j],transpose_a=True)
-        preds = tf.stack(preds)
+                mult = torch.matmul(self.W,H[i,:])
+                add = torch.add(mult,self.b)
+                prev = torch.tanh(add)
+                for j in range(self.betas.shape[0]):
+                    preds[i].append(torch.matmul(prev,self.betas[j]))
                     
-        x_t = tf.gradients(preds[:,0],X[:,4])
-        y_t = tf.gradients(preds[:,1],X[:,4])
-        x_tt = tf.gradients(preds[:,2],X[:,4])
-        y_tt = tf.gradients(preds[:,3],X[:,4])
-        theta_t = tf.gradients(preds[:,4],X[:,4])
-        delta_t = tf.gradients(preds[:,5],X[:,4])
+        preds = torch.stack(preds)
+        print(preds.shape)
+        
+        
+        with tf.GradientTape() as g:
+            g.watch(H[:,4])
+            print(preds[:,0])
+            x=preds[:,0]
+            y=preds[:,1]
+            vx=preds[:,2]
+            vy=preds[:,3]
+            theta=preds[:,4]
+            delta=preds[:,5]
+
+
+        x_t = g.gradient(x,H[:,4])
+        y_t = g.gradient(y,H[:,4])
+        x_tt = g.gradient(vx,H[:,4])
+        y_tt = g.gradient(vy,H[:,4])
+        theta_t = g.gradient(theta,H[:,4])
+        delta_t = g.gradient(delta,H[:,4])
+
         
         f1 = x_t - preds[:,2]
         f2 = y_t - preds[:,3]
-        f3 = x_tt - X[:,0]
-        f4 = y_tt - X[:,1]
-        f5 = theta_t - tf.pow(tf.pow(x_t,2)+tf.pow(y_t,2),2)*tf.tan(preds[:,5])/X[:,3]
-        f6 = delta_t - X[:,2]
+        f3 = x_tt - H[:,0]
+        f4 = y_tt - H[:,1]
+        f5 = theta_t - tf.pow(tf.pow(x_t,2)+tf.pow(y_t,2),2)*tf.tan(preds[:,5])/H[:,3]
+        f6 = delta_t - H[:,2]
         
         b = preds[0,:]-u0
         
