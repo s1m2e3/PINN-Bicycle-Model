@@ -24,10 +24,8 @@ class bicycle_PINN:
         control_test=self.control.loc[int(len(self.control)*self.ratio):]
         states_train=self.states.loc[:int(len(self.states)*self.ratio)]
         states_test=self.states.loc[int(len(self.states)*self.ratio):]
-
-        states_pred,funcs_pred,bounds=self.preds(self.act,control_train,states_train)
         opt = tf.keras.optimizers.Adam(learning_rate=0.01)
-        self.train(states_pred-states_train,funcs_pred,bounds,opt)
+        self.train(self.act,control_train,states_train,opt)
         
 
     def XTFC(self,control_shape,states_shape,n_nodes):
@@ -40,7 +38,7 @@ class bicycle_PINN:
         self.b=tf.random.uniform(minval=LBw,maxval=UBw,shape=(n_nodes,1))
         self.betas = tf.Variable(np.ones((n_nodes,states_shape[1])),dtype='float32')
         
-    def preds(self,activation_function,control,states):
+    def train(self,activation_function,control,states,opt,n_epochs=10000):
         
         states_shape = states.shape
         u0 = np.array(states.loc[0])
@@ -49,41 +47,25 @@ class bicycle_PINN:
         lb = X.max()
         H = (X-lb)/(ub-lb)
         H =  tf.convert_to_tensor(H[:,3],dtype='float32')
-        
-        with tf.GradientTape() as g:
-            g.watch(H)
-            pred =tf.matmul(tf.tanh(tf.transpose(self.b) +tf.matmul(tf.transpose([H]),self.W)),(self.betas))
-            dH_dt = g.jacobian(pred, H)
-        #find jacobian for each timestamp prediction
-        x_t = tf.linalg.diag_part(dH_dt[:,0,:])
-        y_t = tf.linalg.diag_part(dH_dt[:,1,:])
-        theta_t = tf.linalg.diag_part(dH_dt[:,2,:])
-        
-        f1 = x_t - (X[:,0]*tf.cos(pred[:,2]))
-        f2 = y_t - (X[:,0]*tf.sin(pred[:,2]))
-        f3 = theta_t - (X[:,0]*X[:,1]/X[:,2])
-        
-        b = pred[0,:]-u0
-        print(b)
-        return pred, [f1,f2,f3],b
-    
-    def train(self,res,f,b,opt,n_epochs=4000):       
-       
+        states_norm = (states-states.min())/(states.max()-states.min())
         for i in range(n_epochs):
-            with tf.GradientTape() as g:
-
-                # Run the forward pass of the layer.
-                # The operations that the layer applies
-                # to its inputs are going to be recorded
-                # on the GradientTape.
+        
+            with tf.GradientTape(persistent=True) as g:
+                g.watch(H)
                 g.watch(self.betas)
-                loss = tf.reduce_mean(tf.square(res)+tf.square(tf.norm(f))+tf.square(tf.norm(b)))
-                grads = g.gradient(loss,self.betas)
-                print(grads)
-            # Run one step of gradient descent by updating
-            # the value of the variables to minimize the loss.
-            opt.apply_gradients(zip(grads,self.betas))
-
-                # Log every 200 batches.
-            if i % 200 == 0:
-                print("Training loss at step %d: %.4f"%(i, float(loss)))
+                pred = tf.matmul(tf.tanh(tf.transpose(self.b) +tf.matmul(tf.transpose([H]),self.W)),(self.betas))
+                sech_=1-tf.pow(tf.tanh(tf.transpose(self.b) +tf.matmul(tf.transpose([H]),self.W)),2)
+                right_mult = tf.math.multiply(sech_,self.W)
+                dH_dt = tf.matmul(right_mult,self.betas)
+                x_t = dH_dt[:,0]
+                y_t = dH_dt[:,1]
+                theta_t = dH_dt[:,2]
+                f1 = x_t - (X[:,0]*tf.cos(pred[:,2]))
+                f2 = y_t - (X[:,0]*tf.sin(pred[:,2]))
+                f3 = theta_t - (X[:,0]*X[:,1]/X[:,2])
+                b = pred[0,:]-u0
+                loss = tf.reduce_mean(tf.square(pred-states_norm)+tf.square(tf.norm([f1+f2+f3]))+tf.square(tf.norm(b)))
+            grads = g.gradient(loss,self.betas)
+            opt.apply_gradients(zip([grads],[self.betas]))
+            print("Training loss at step %d: %.4f"%(i, float(loss)))
+                
