@@ -10,7 +10,7 @@ from predict_ode import *
 
 def main():
     df = pd.read_csv("edited.csv")
-    test_df=df.reset_index(drop=True)
+    test_df=df[df["sub_group"]==df['sub_group'].loc[1000]].reset_index(drop=True)
     #states_reg = test_ode_reg(df_reg)
     #states_lin =test_ode_reg(df_lin)
     pinn_reg = bicycle_PINN(test_df,"reg")

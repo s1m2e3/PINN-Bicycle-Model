@@ -44,28 +44,37 @@ class bicycle_PINN:
         states_shape = states.shape
         u0 = np.array(states.loc[0])
         X = np.array(control)
-        ub = X.min()
-        lb = X.max()
-        H = (X-lb)/(ub-lb)
-        H =  tf.convert_to_tensor(H[:,3],dtype='float32')
-        states_norm = (states-states.min())/(states.max()-states.min())
-    
-        with tf.GradientTape(persistent=True) as g:
-            g.watch(H)
-            g.watch(self.betas)
-            pred = tf.matmul(tf.tanh(tf.transpose(self.b) +tf.matmul(tf.transpose([H]),self.W)),(self.betas))
-            sech_=1-tf.pow(tf.tanh(tf.transpose(self.b) +tf.matmul(tf.transpose([H]),self.W)),2)
-            right_mult = tf.math.multiply(sech_,self.W)
-            dH_dt = tf.matmul(right_mult,self.betas)
-            x_t = dH_dt[:,0]
-            y_t = dH_dt[:,1]
-            theta_t = dH_dt[:,2]
-            f1 = x_t - (X[:,0]*tf.cos(pred[:,2]))
-            f2 = y_t - (X[:,0]*tf.sin(pred[:,2]))
-            f3 = theta_t - (X[:,0]*X[:,1]/X[:,2])
-            b = pred[0,:]-u0
-            loss = tf.reduce_mean(tf.square(pred-states_norm)+tf.square(tf.norm([f1+f2+f3]))+tf.square(tf.norm(b)))
-        grads = g.gradient(loss,self.betas)
-        opt.apply_gradients(zip([grads],[self.betas]))
-        print("Training loss at step %d: %.4f"%(i, float(loss)))
-            
+        X_lb = X.min()
+        X_ub = X.max()
+        X = (X-X_lb)/(X_ub-X_lb)
+        H =  tf.convert_to_tensor(X[:,3],dtype='float32')
+        Y=np.array(states)
+        Y_lb = Y.min()
+        Y_ub = Y.max()
+        Y = (Y-Y_lb)/(Y_ub-Y_lb)
+        
+        for i in range(1):
+            with tf.GradientTape(persistent=True) as g:
+                g.watch(H)
+                g.watch(self.betas)
+                pred = tf.matmul(tf.tanh(tf.transpose(self.b) +tf.matmul(tf.transpose([H]),self.W)),(self.betas))
+                sech_=1-tf.pow(tf.tanh(tf.transpose(self.b) +tf.matmul(tf.transpose([H]),self.W)),2)
+                right_mult = tf.math.multiply(sech_,self.W)
+                dH_dt = tf.matmul(right_mult,self.betas)
+                x_t = dH_dt[:,0]
+                y_t = dH_dt[:,1]
+                theta_t = dH_dt[:,2]
+                f1 = x_t - (X[:,0]*tf.cos(pred[:,2]))
+                f2 = y_t - (X[:,0]*tf.sin(pred[:,2]))
+                f3 = theta_t - (X[:,0]*X[:,1]/X[:,2])
+                b = pred[0,:]-u0
+                print(pred-Y)
+                print(f1)
+                print(f2)
+                print(f3)
+                print(b)
+                loss = tf.reduce_mean(tf.square(pred-Y)+tf.square(tf.norm([f1+f2+f3]))+tf.square(tf.norm(b)))
+            grads = g.gradient(loss,self.betas)
+            opt.apply_gradients(zip([grads],[self.betas]))
+            print("Training loss at step %d: %.4f"%(i, float(loss)))
+                
