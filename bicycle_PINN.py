@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 import pandas as pd
-import time
+import datetime
 
 
 class bicycle_PINN:
@@ -25,8 +25,7 @@ class bicycle_PINN:
         control_test=self.control.loc[int(len(self.control)*self.ratio):]
         states_train=self.states.loc[:int(len(self.states)*self.ratio)]
         states_test=self.states.loc[int(len(self.states)*self.ratio):]
-        opt = tf.keras.optimizers.Adam(learning_rate=0.01)
-        self.train(self.act,control_train,states_train,opt)
+        self.train(self.act,control_train,states_train)
         
 
     def XTFC(self,control_shape,states_shape,n_nodes):
@@ -36,45 +35,53 @@ class bicycle_PINN:
         UBw = 3
         UBb = 3
         self.W=tf.random.uniform(minval=LBw,maxval=UBw,shape=(1,n_nodes))
-        self.b=tf.random.uniform(minval=LBw,maxval=UBw,shape=(n_nodes,1))
+        self.b=tf.random.uniform(minval=LBb,maxval=UBb,shape=(n_nodes,1))
         self.betas = tf.Variable(np.ones((n_nodes,states_shape[1])),dtype='float32')
         
-    def train(self,activation_function,control,states,opt):
+    def train(self,activation_function,control,states):
         
         states_shape = states.shape
         u0 = np.array(states.loc[0])
         X = np.array(control)
-        X_lb = X.min()
-        X_ub = X.max()
-        X = (X-X_lb)/(X_ub-X_lb)
-        H =  tf.convert_to_tensor(X[:,3],dtype='float32')
-        Y=np.array(states)
-        Y_lb = Y.min()
-        Y_ub = Y.max()
-        Y = (Y-Y_lb)/(Y_ub-Y_lb)
-        
-        for i in range(1):
-            with tf.GradientTape(persistent=True) as g:
-                g.watch(H)
-                g.watch(self.betas)
-                pred = tf.matmul(tf.tanh(tf.transpose(self.b) +tf.matmul(tf.transpose([H]),self.W)),(self.betas))
-                sech_=1-tf.pow(tf.tanh(tf.transpose(self.b) +tf.matmul(tf.transpose([H]),self.W)),2)
-                right_mult = tf.math.multiply(sech_,self.W)
-                dH_dt = tf.matmul(right_mult,self.betas)
-                x_t = dH_dt[:,0]
-                y_t = dH_dt[:,1]
-                theta_t = dH_dt[:,2]
-                f1 = x_t - (X[:,0]*tf.cos(pred[:,2]))
-                f2 = y_t - (X[:,0]*tf.sin(pred[:,2]))
-                f3 = theta_t - (X[:,0]*X[:,1]/X[:,2])
-                b = pred[0,:]-u0
-                print(pred-Y)
-                print(f1)
-                print(f2)
-                print(f3)
-                print(b)
-                loss = tf.reduce_mean(tf.square(pred-Y)+tf.square(tf.norm([f1+f2+f3]))+tf.square(tf.norm(b)))
-            grads = g.gradient(loss,self.betas)
-            opt.apply_gradients(zip([grads],[self.betas]))
-            print("Training loss at step %d: %.4f"%(i, float(loss)))
+        now = datetime.datetime.now()
+    
+        #bound input time from 0 to 1 
+        x_max = 1
+        x_min = 0
+        c = (x_max-x_min) /(X[:,3].max()-X[:,3].min())
+        H =  tf.convert_to_tensor(c*X[:,3],dtype='float32')
+        Y = np.array(states)
+        H_ = tf.tanh(tf.transpose(self.b) +tf.matmul(tf.transpose([H]),self.W))
+        pred = tf.matmul(H_,(self.betas))
+        print(tf.reduce_sum(tf.math.pow(pred-Y,2)))
+        sech_=1-tf.pow(tf.tanh(tf.transpose(self.b) +tf.matmul(tf.transpose([H]),self.W)),2)
+        right_mult = tf.math.multiply(sech_,self.W)
+        dH_dt_ = right_mult*c
+        A = tf.concat([H_,dH_dt_],axis=0)
+        xt=(tf.transpose([X[:,0]*tf.cos(pred[:,2])]))
+        yt=(tf.transpose([X[:,0]*tf.sin(pred[:,2])]))
+        thetat=(tf.transpose([X[:,0]*X[:,1]/X[:,2]]))
+        thetat =tf.cast(thetat,tf.float32)
+        U =tf.concat([xt,yt],axis=1)
+        U = tf.concat([U,thetat],axis=1)
+        B = tf.concat([Y,U],axis=0)
+        self.betas = tf.linalg.lstsq(A,B,fast=False)
+        after = datetime.datetime.now()
+        print(after-now)
+        new_preds = tf.matmul(H_,(self.betas))
+        print(tf.reduce_sum(tf.math.pow(new_preds-Y,2)))
+
+         # with tf.GradientTape(persistent=True) as g:
+        #     g.watch(H)
+        #     g.watch(self.betas)
+        #     dH_dt = tf.matmul(right_mult,self.betas)
+        #     x_t = dH_dt[:,0]
+        #     y_t = dH_dt[:,1]
+        #     theta_t = dH_dt[:,2]
+        #     f1 = x_t - (X[:,0]*tf.cos(pred[:,2]))
+        #     f2 = y_t - (X[:,0]*tf.sin(pred[:,2]))
+        #     f3 = theta_t - (X[:,0]*X[:,1]/X[:,2])
+        #     b = pred[0,:]-u0
+        #     loss = tf.reduce_mean(tf.square(pred-Y)+tf.square(tf.norm([f1+f2+f3]))+tf.square(tf.norm(b)))
                 
+        
