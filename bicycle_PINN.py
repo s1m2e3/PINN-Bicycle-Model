@@ -48,8 +48,6 @@ class bicycle_PINN:
         if mode=="PIELM":
 
             X = np.array(control)
-            now = datetime.datetime.now()
-    
             #bound input time from 0 to 1 
             x_max = 1
             x_min = 0
@@ -61,7 +59,8 @@ class bicycle_PINN:
             sech_=1-tf.pow(tf.tanh(tf.transpose(self.b) +tf.matmul(tf.transpose([H]),self.W)),2)
             right_mult = tf.math.multiply(sech_,self.W)
             dH_dt_ = right_mult*c
-            A = tf.concat([H_,dH_dt_],axis=0)
+
+            A = tf.concat([H_[:states.shape[0],:],dH_dt_],axis=0)
             xt=(tf.transpose([X[:,0]*tf.cos(pred[:,2])]))
             yt=(tf.transpose([X[:,0]*tf.sin(pred[:,2])]))
             thetat=(tf.transpose([X[:,0]*X[:,1]/X[:,2]]))
@@ -69,11 +68,22 @@ class bicycle_PINN:
             U =tf.concat([xt,yt],axis=1)
             U = tf.concat([U,thetat],axis=1)
             B = tf.concat([Y,U],axis=0)
+            
+            now = datetime.datetime.now()
             self.betas = tf.linalg.lstsq(A,B,fast=False)
             after = datetime.datetime.now()
             print(after-now)
             new_preds = tf.matmul(H_,(self.betas))
-            print(tf.reduce_sum(tf.math.pow(new_preds-Y,2)))
+            print("results with Least Squares Method",tf.reduce_sum(tf.math.pow(new_preds-Y,2)))
+            
+            now = datetime.datetime.now()
+            pinv = tf.linalg.pinv(A)
+            self.betas = tf.matmul(pinv,B)
+            after = datetime.datetime.now()
+            print(after-now)
+            new_preds = tf.matmul(H_,(self.betas))
+            print("results with PseudoInverse Method",tf.reduce_sum(tf.math.pow(new_preds-Y,2)))
+
             return new_preds
             
         elif mode=="XTFC":
