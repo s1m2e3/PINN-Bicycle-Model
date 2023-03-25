@@ -3,7 +3,7 @@ import pandas as pd
 from scipy.integrate import solve_ivp
 import datetime
 
-def bicycle_reg(t,u,v,delta,l):
+def bicycle_reg(t=0,u,v,delta,l):
     x,y,theta= u
     dudt =[v*np.cos(theta),v*np.sin(theta),v/l*np.tan(delta)]
 
