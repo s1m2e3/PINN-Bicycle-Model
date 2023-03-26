@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from scipy.integrate import solve_ivp
-from bicycle_PINN import bicycle_PINN
+from bicycle_PINN import PIELM
 import datetime
 import utm
 from process import prep_df_reg
@@ -14,10 +14,21 @@ def main():
     df = pd.read_csv("edited.csv")
     df = df[df["temporaryId"]==df["temporaryId"].loc[0]].reset_index(drop=True)
     test_df=df[df["sub_group"]=='inbound1'].reset_index(drop=True)
-    states_reg = test_ode_reg(test_df)
-    compare_states = np.array(test_df[["x","y","heading","timestamp_posix"]])
-    print(np.sum(np.power(states_reg[:,0:2]-compare_states[:,0:2],2)))
-    pinn_reg = bicycle_PINN(test_df,"reg")
+    # states_reg = test_ode_reg(test_df)
+    # compare_states = np.array(test_df[["x","y","heading","timestamp_posix"]])
+    l = test_df['length']
+    rho = test_df["steering_angle_rate"]
+    x = test_df["timestamp_posix"]-test_df["timestamp_posix"][0]
+    y = test_df[["x","y","heading","steering_angle"]]
+    accuracy = 1e-5
+    n_iterations = 1e5
+
+    
+    
+    pielm = PIELM(n_nodes=100,input_size= x.shape[0],output_size=y.shape[1])
+    pielm.train(accuracy,n_iterations,x,y,l,rho)
+    
+    
     '''
     
     compare_states[:,3]=compare_states[:,3]-compare_states[0,3]
