@@ -28,7 +28,7 @@ class PIELM:
         dh = self.get_dh(x_train)
         self.betas = torch.matmul(torch.linalg.pinv(h),y_train)
         self.betas.requires_grad=True
-        while count < n_iterations or error<accuracy:
+        while count < 10000 or error<accuracy:
             self.betas.retain_grad()
             
             l_pred = (y_train-self.predict(x_train))
@@ -37,12 +37,16 @@ class PIELM:
             l_theta = torch.matmul(dh,self.betas[:,2])-(torch.matmul(dh,self.betas[:,0])**2+torch.matmul(dh,self.betas[:,1])**2)**(1/2)*torch.tan(torch.matmul(h,self.betas[:,3]))/l
             l_delta = torch.matmul(dh,self.betas[:,3])-rho
             loss_dh = torch.stack((l_x,l_y,l_theta,l_delta),dim=1)
-            
-            loss = torch.sum((torch.cat((l_pred,loss_dh),dim=0))**2)/len(y_train)
+            loss_vector = (torch.cat((l_pred,loss_dh),dim=0))
+            loss = torch.sum(loss_vector**2)/len(y_train)
             loss.backward(retain_graph=True)
-            self.betas = self.betas + torch.transpose(torch.mul(loss,torch.linalg.pinv(self.betas.grad)),0,1)
-            count +=1
+            #torch.transpose(torch.mul(torch.sum(loss_vector,dim=0).reshape(4,1),torch.linalg.pinv(self.betas.grad)),0,1))
             
+            self.betas = torch.add(self.betas,-torch.transpose(torch.matmul(torch.linalg.pinv(self.betas.grad),loss_vector),0,1))
+            count +=1
+            if count % 20:
+                print(loss)
+
     def predict(self,x):
         return torch.matmul(self.get_h(x),self.betas)
     def get_h(self,x):
