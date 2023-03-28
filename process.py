@@ -14,7 +14,7 @@ def prep_df_reg(df):
     df["accel_x"]=0
     df["accel_y"]=0
     df["ang_speed"]=0
-    
+    df["length"]=df["length"]/100
     for id in df["temporaryId"].unique():
         sub_df_index = df[df['temporaryId']==id].index
         df["accel_x"].loc[sub_df_index]=df["speed_x"].loc[sub_df_index].diff()
@@ -22,7 +22,7 @@ def prep_df_reg(df):
         df["ang_speed"].loc[sub_df_index]=df["heading"].loc[sub_df_index].diff()
 
     df["radius"]=df["speed"]/df["ang_speed"]
-    df["steering_angle"]=np.arctan(df["length"]/df["radius"])
+    df["steering_angle"]=np.arctan((df["length"])/df["radius"])
     df["steering_angle_rate"]=0
     df["steering_angle_rate"]=df["steering_angle"].diff()
 

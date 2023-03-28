@@ -8,22 +8,32 @@ from process import prep_df_reg
 from predict_ode import *
 import matplotlib.pyplot as plt
 import seaborn as sns
+from process import * 
+from datetime import datetime
 
 def main():
     sns.set()
     df = pd.read_csv("edited.csv")
+    # df = prep_df_reg(df)
+    # df.to_csv("edited.csv")
     df = df[df["temporaryId"]==df["temporaryId"].loc[0]].reset_index(drop=True)
     test_df=df[df["sub_group"]=='inbound1'].reset_index(drop=True)
+    test_df["time"]=pd.to_datetime(test_df["timestamp_posix"],unit="s")
+    test_df=test_df.set_index("time")
+    test_df=test_df.resample('1L').interpolate(method='linear', limit_direction='forward', axis=0)
+    print(test_df["steering_angle"].head())
+    
+    
     # states_reg = test_ode_reg(test_df)
     # compare_states = np.array(test_df[["x","y","heading","timestamp_posix"]])
-    l = test_df['length']
-    rho = test_df["steering_angle_rate"]
-    x = (test_df["timestamp_posix"]-test_df["timestamp_posix"][0])/(test_df["timestamp_posix"][len(test_df)-1]-test_df["timestamp_posix"][0])
-    y = (test_df[["x","y","heading","steering_angle"]]-test_df[["x","y","heading","steering_angle"]].min())/(test_df[["x","y","heading","steering_angle"]].max()-test_df[["x","y","heading","steering_angle"]].min())
-    accuracy = 1e-5
-    n_iterations = 1e5
-    pielm = PIELM(n_nodes=100,input_size= x.shape[0],output_size=y.shape[1])
-    pielm.train(accuracy,n_iterations,x,y,l,rho)    
+    # l = test_df['length']
+    # rho = test_df["steering_angle_rate"]
+    # x = (test_df["timestamp_posix"]-test_df["timestamp_posix"][0])/(test_df["timestamp_posix"][len(test_df)-1]-test_df["timestamp_posix"][0])
+    # y = (test_df[["x","y","heading","steering_angle"]]-test_df[["x","y","heading","steering_angle"]].min())/(test_df[["x","y","heading","steering_angle"]].max()-test_df[["x","y","heading","steering_angle"]].min())
+    # accuracy = 1e-5
+    # n_iterations = 1e5
+    # pielm = PIELM(n_nodes=100,input_size= x.shape[0],output_size=y.shape[1])
+    # pielm.train(accuracy,n_iterations,x,y,l,rho)    
     
     '''
     
