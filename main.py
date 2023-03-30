@@ -18,6 +18,7 @@ def main():
     # df.to_csv("edited.csv")
     df = df[df["temporaryId"]==df["temporaryId"].loc[0]].reset_index(drop=True)
     test_df=df[df["sub_group"]=='inbound1'].reset_index(drop=True)
+    #test_df = df
     # test_df["time"]=pd.to_datetime(test_df["timestamp_posix"],unit="s")
     # test_df=test_df.set_index("time")
     # test_df=test_df.resample('1L').mean()
@@ -31,7 +32,7 @@ def main():
     y =(test_df[["x","y","heading","steering_angle"]]-test_df[["x","y","heading","steering_angle"]].min())/(test_df[["x","y","heading","steering_angle"]].max()-test_df[["x","y","heading","steering_angle"]].min())
     accuracy = 1e-5
     n_iterations = 1e5
-    pielm = PIELM(n_nodes=128,input_size= x.shape[0],output_size=y.shape[1])
+    pielm = PIELM(n_nodes=100,input_size= x.shape[0],output_size=y.shape[1])
     pielm.train(accuracy,n_iterations,x,y,l,rho)    
     y_pred = pd.DataFrame((pielm.predict_no_reshape(pielm.x_train,pielm.y_train).detach().numpy())[:,:4])
     y_pred.columns = ["x","y","heading","steering_angle"]
