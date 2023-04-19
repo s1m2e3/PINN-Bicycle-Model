@@ -14,7 +14,7 @@ class PIELM:
         self.W = (torch.randn(size=(n_nodes,1),dtype=torch.double)*(high_w-low_w)+low_w)
         self.b = (torch.randn(size=(n_nodes,1),dtype=torch.double)*(high_b-low_b)+low_b)
         
-        self.betas = torch.randn(size=(output_size*n_nodes,),requires_grad=True,dtype=torch.double)
+        self.betas = torch.zeros(size=(output_size*n_nodes,),requires_grad=True,dtype=torch.double)+0.01
         
     def train(self,accuracy, n_iterations,x_train,y_train,l,rho):
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -44,7 +44,7 @@ class PIELM:
                 loss = self.predict(self.x_train,self.y_train)
                 pinv_jac = torch.linalg.pinv(jac)
                 delta = torch.matmul(pinv_jac,loss)
-                self.betas -=delta*0.01
+                self.betas -=delta*0.05
                 
             #if count %10==0:
             print(loss.abs().max(dim=0),loss.mean(dim=0))

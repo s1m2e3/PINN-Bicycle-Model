@@ -30,6 +30,7 @@ def main():
     rho = test_df["steering_angle_rate"]
     x = (test_df["timestamp_posix"]-test_df["timestamp_posix"][0])/(test_df["timestamp_posix"][len(test_df)-1]-test_df["timestamp_posix"][0])
     y =(test_df[["x","y","heading","steering_angle"]]-test_df[["x","y","heading","steering_angle"]].min())/(test_df[["x","y","heading","steering_angle"]].max()-test_df[["x","y","heading","steering_angle"]].min())
+    y= test_df[["x","y","heading","steering_angle"]]
     accuracy = 1e-5
     n_iterations = 1e5
     pielm = PIELM(n_nodes=100,input_size= x.shape[0],output_size=y.shape[1])
