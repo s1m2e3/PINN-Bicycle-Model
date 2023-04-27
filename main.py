@@ -48,7 +48,7 @@ def main():
     y =(test_df[["x","y","heading","steering_angle"]]-test_df[["x","y","heading","steering_angle"]].min())/(test_df[["x","y","heading","steering_angle"]].max()-test_df[["x","y","heading","steering_angle"]].min())
     #y= test_df[["x","y","heading","steering_angle"]]
     accuracy = 1e-5
-    n_iterations = int(1e3)
+    n_iterations = int(1e5)
     # pielm = PIELM(n_nodes=50,input_size= x.shape[0],output_size=y.shape[1])
     # x = x.iloc[0:20]
     # y = y.iloc[0:10]
@@ -64,12 +64,12 @@ def main():
     n_nodes = 32
     input_sequence_length = 50
     output_sequence_length = 10
-    x = np.array((test_df["timestamp_posix"]-test_df["timestamp_posix"][0])/(test_df["timestamp_posix"][len(test_df)-1]-test_df["timestamp_posix"][0]))
-    y = np.array((test_df[["x","y","heading","steering_angle"]]-test_df[["x","y","heading","steering_angle"]].min())/(test_df[["x","y","heading","steering_angle"]].max()-test_df[["x","y","heading","steering_angle"]].min()))
+    #x = np.array((test_df["timestamp_posix"]-test_df["timestamp_posix"][0])/(test_df["timestamp_posix"][len(test_df)-1]-test_df["timestamp_posix"][0]))
+    #y = np.array((test_df[["x","y","heading","steering_angle"]]-test_df[["x","y","heading","steering_angle"]].min())/(test_df[["x","y","heading","steering_angle"]].max()-test_df[["x","y","heading","steering_angle"]].min()))
     #x =np.array(test_df["timestamp_posix"])
     #y =np.array(test_df[["x","y","heading","steering_angle"]])
     stop = int(len(test_df)/10*7)
-    x = np.reshape(x,(len(x),1))
+    #x = np.reshape(x,(len(x),1))
     
     # ff_nn = NN(x.shape[1],n_nodes,y.shape[1])
     # ff_nn.train(n_iterations,x[0:stop],y[0:stop,])
@@ -81,47 +81,48 @@ def main():
     
     layers = 5
     hidden = 20
+    # lstm = LSTM(x.shape[1],hidden,layers,y.shape[1],input_sequence_length,output_sequence_length)
+    # x_train = conver_to_lstm_data(x[0:stop],input_sequence_length)
+    # y_train = conver_to_lstm_data(y[0:stop],output_sequence_length)
+    # lstm.train(n_iterations,x_train,y_train)
+    # pred_lstm= lstm.predict(y.loc[stop:])
+
+    # ##neural newtworks with controlers only:
+    # x = np.array((test_df[["timestamp_posix","speed","steering_angle_rate"]]-test_df[["timestamp_posix","speed","steering_angle_rate"]].min())/(test_df[["timestamp_posix","speed","steering_angle_rate"]].max()-test_df[["timestamp_posix","speed","steering_angle_rate"]].min()))
+    # y = np.array((test_df[["x","y","heading","steering_angle"]]-test_df[["x","y","heading","steering_angle"]].min())/(test_df[["x","y","heading","steering_angle"]].max()-test_df[["x","y","heading","steering_angle"]].min()))
+    # ff_nn = NN(x.shape[1],n_nodes,y.shape[1])
+    # ff_nn.train(n_iterations,x[0:stop],y[0:stop])
+    # pred_ff_nn = ff_nn.predict(x[stop:])
+
+    
+    # lstm = LSTM(x.shape[1],hidden,layers,y.shape[1],input_sequence_length,output_sequence_length)
+    # x_train = conver_to_lstm_data(x[0:stop],input_sequence_length)
+    # y_train = conver_to_lstm_data(y[0:stop],output_sequence_length)
+    # lstm.train(n_iterations,x_train,y_train)
+    # pred_lstm= lstm.predict(y[stop:])
+    
+
+    # ##neural networks with previous states:
+    x = (test_df[["timestamp_posix","x","y","heading","steering_angle","speed","steering_angle_rate"]]-test_df[["timestamp_posix","x","y","heading","steering_angle","speed","steering_angle_rate"]].min())/(test_df[["timestamp_posix","x","y","heading","steering_angle","speed","steering_angle_rate"]].max()-test_df[["timestamp_posix","x","y","heading","steering_angle","speed","steering_angle_rate"]].min())
+    
+    y = np.array(x.iloc[1:])
+    x = np.array(x.iloc[:-2])
+    
+    # ff_nn = NN(x.shape[1],n_nodes,y.shape[1])
+    # ff_nn.train(n_iterations,x[0:stop],y[0:stop])
+    # pred_ff_nn = ff_nn.predict(x[stop:])
+
+    x = np.array((test_df[["timestamp_posix","x","y","heading","steering_angle","speed","steering_angle_rate"]]-test_df[["timestamp_posix","x","y","heading","steering_angle","speed","steering_angle_rate"]].min())/(test_df[["timestamp_posix","x","y","heading","steering_angle","speed","steering_angle_rate"]].max()-test_df[["timestamp_posix","x","y","heading","steering_angle","speed","steering_angle_rate"]].min()))
+    y = np.array(x)
+
+    # input_shape = tuple(input_sequence_length.extend(list(x.shape)))
+    # output_shape = tuple(output_sequence_length.extend(list(y.shape))) 
+    
     lstm = LSTM(x.shape[1],hidden,layers,y.shape[1],input_sequence_length,output_sequence_length)
     x_train = conver_to_lstm_data(x[0:stop],input_sequence_length)
     y_train = conver_to_lstm_data(y[0:stop],output_sequence_length)
     lstm.train(n_iterations,x_train,y_train)
-    pred_lstm= lstm.predict(y.loc[stop:])
-
-    # ##neural newtworks with controlers only:
-    # x = test_df[["timestamp_posix","speed","steering_angle_rate"]]
-    # y = test_df[["x","y","heading","steering_angle"]]
-    
-    # ff_nn = NN(x.shape,n_nodes,y.shape)
-    # ff_nn.train(n_iterations,x.loc[0:stop],y.loc[0:stop])
-    # pred_ff_nn = ff_nn.predict(x.loc[stop:])
-
-    # input_shape = tuple(input_sequence_length.extend(list(x.shape)))
-    # output_shape = tuple(output_sequence_length.extend(list(y.shape))) 
-    
-    # lstm = LSTM(input_shape,n_nodes,3,output_shape)
-    # x_train = conver_to_lstm_data(x.loc[0:stop],input_sequence_length)
-    # y_train = conver_to_lstm_data(y.loc[0:stop],output_sequence_length)
-    # lstm.train(n_iterations,x_train,y_train)
-    # pred_lstm= lstm.predict(y.loc[stop:])
-    
-
-    # ##neural networks with previous states:
-    # x = test_df[["timestamp_posix","x","y","heading","steering_angle","speed","steering_angle_rate"]]
-    # y = x.iloc[1:]
-    # x = x.iloc[:-2]
-    
-    # ff_nn = NN(x.shape,n_nodes,y.shape)
-    # ff_nn.train(n_iterations,x.iloc[0:stop],y.iloc[0:stop])
-    # pred_ff_nn = ff_nn.predict(x.iloc[stop:])
-
-    # input_shape = tuple(input_sequence_length.extend(list(x.shape)))
-    # output_shape = tuple(output_sequence_length.extend(list(y.shape))) 
-    
-    # lstm = LSTM(input_shape,n_nodes,3,output_shape)
-    # x_train = conver_to_lstm_data(x.loc[0:stop],input_sequence_length)
-    # y_train = conver_to_lstm_data(y.loc[0:stop],output_sequence_length)
-    # lstm.train(n_iterations,x_train,y_train)
-    # pred_lstm= lstm.predict(y.loc[stop:])
+    pred_lstm= lstm.predict(y[stop:])
 
     '''
     

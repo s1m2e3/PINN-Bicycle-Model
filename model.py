@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 import torch.nn as nn
 
 def reshape_tensor(x, batch_size):
@@ -17,33 +18,35 @@ class NN(nn.Module):
         self.relu = nn.ReLU()
         self.fc2 = nn.Linear(hidden_size, output_size)
         self.optimizer = torch.optim.SGD(self.parameters(),lr=0.1)
-
+        self.criterion = nn.MSELoss()
     def forward(self, x):
-        x=torch.tensor(x,dtype=torch.float)
-        x = self.fc1(x)
-        x = self.relu(x)
-        x = self.fc2(x)
-        return x
+        
+        
+        out = self.fc1(x)
+        out = self.relu(out)
+        out = self.fc2(out)
+        
+        return out
 
     def train(self,num_epochs,x_train_data,y_train_data):
-        x_train_data = torch.tensor(x_train_data,dtype=torch.float)
-        y_train_data = torch.tensor(y_train_data,dtype=torch.float)
+        x_train_data = torch.tensor(np.array(x_train_data),dtype=torch.float)
+        y_train_data = torch.tensor(np.array(y_train_data),dtype=torch.float)
+        
+        # print(self.forward(x_train_data)-y_train_data)
+        # print(self.criterion(self.forward(x_train_data),y_train_data))
         for epoch in range(num_epochs):
-            for i in range(len(x_train_data)):
-                
-                #x = x_train_data[i,:,]
-                #y = y_train_data[i,:,]
-                self.optimizer.zero_grad()
-                outputs = self.forward(x_train_data)
-                self.criterion = nn.MSELoss()
-                loss = self.criterion(outputs, y_train_data)
-                loss.backward()
-                self.optimizer.step()
-                
-                # Print training statistics
-                if (i+1) % 10 == 0:
-                    print("Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}"
-                        .format(epoch+1, num_epochs, i+1, len(x_train_data), loss.item()))
+        
+            
+            self.optimizer.zero_grad()
+            outputs = self.forward(x_train_data)
+            loss = self.criterion(outputs, y_train_data)
+            loss.backward()
+            self.optimizer.step()
+            
+            #Print training statistics
+            if (epoch+1) % 10 == 0:
+                print("Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}"
+                    .format(epoch+1, num_epochs, epoch+1, len(x_train_data), loss.item()))
 
 
 class LSTM(nn.Module):
