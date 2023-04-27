@@ -15,7 +15,6 @@ from model import *
 
 def conver_to_lstm_data(data,sequence_length):
     data =np.array(data)
-    
     new_shape = [data.shape[0]-sequence_length]
     #data_shape = list(data.shape)
     new_shape.append(sequence_length)
@@ -67,6 +66,8 @@ def main():
     output_sequence_length = 10
     x = np.array((test_df["timestamp_posix"]-test_df["timestamp_posix"][0])/(test_df["timestamp_posix"][len(test_df)-1]-test_df["timestamp_posix"][0]))
     y = np.array((test_df[["x","y","heading","steering_angle"]]-test_df[["x","y","heading","steering_angle"]].min())/(test_df[["x","y","heading","steering_angle"]].max()-test_df[["x","y","heading","steering_angle"]].min()))
+    #x =np.array(test_df["timestamp_posix"])
+    #y =np.array(test_df[["x","y","heading","steering_angle"]])
     stop = int(len(test_df)/10*7)
     x = np.reshape(x,(len(x),1))
     
@@ -78,9 +79,9 @@ def main():
     #for batched lstm remember dimensions N*L*Hin, where N is the number of batches, L is the sequence length and Hin is the input dimension
     #the dimension of the output is the number of L* Hidden where L is the sequence length and H is the hidden size
     
-    layers = 2
+    layers = 5
     hidden = 20
-    lstm = LSTM(x.shape[1],hidden,layers,y.shape[1])
+    lstm = LSTM(x.shape[1],hidden,layers,y.shape[1],input_sequence_length,output_sequence_length)
     x_train = conver_to_lstm_data(x[0:stop],input_sequence_length)
     y_train = conver_to_lstm_data(y[0:stop],output_sequence_length)
     lstm.train(n_iterations,x_train,y_train)
