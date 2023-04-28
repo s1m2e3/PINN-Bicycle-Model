@@ -3,6 +3,7 @@ from torch.autograd.functional import jacobian
 import numpy as np
 import pandas as pd
 import datetime
+import torch.nn as nn
 
 class PIELM:
 
@@ -10,48 +11,63 @@ class PIELM:
         # if len(functions)==output_size:
         #     raise ValueError("gotta match number of states predicted and diferential equations")
         # self.functions = functions
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.nodes = n_nodes
-        self.W = (torch.randn(size=(n_nodes,1),dtype=torch.double)*(high_w-low_w)+low_w)
-        self.b = (torch.randn(size=(n_nodes,1),dtype=torch.double)*(high_b-low_b)+low_b)
+        self.W = (torch.randn(size=(n_nodes,1),dtype=torch.float)*(high_w-low_w)+low_w)
+        self.b = (torch.randn(size=(n_nodes,1),dtype=torch.float)*(high_b-low_b)+low_b)
         
-        self.betas = torch.zeros(size=(output_size*n_nodes,),requires_grad=True,dtype=torch.double)+0.01
+        self.betas = torch.zeros(size=(output_size*n_nodes,),requires_grad=True,dtype=torch.float)+0.01
         
+
     def train(self,accuracy, n_iterations,x_train,y_train,l,rho):
+        
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         count = 0
         error = 100
         
-        self.x_train = torch.tensor(x_train.values).reshape(x_train.shape[0],1).to(device)
-        self.y_train = torch.tensor(y_train.values).to(device)
+        self.x_train = torch.tensor(x_train.values,dtype=torch.float).reshape(x_train.shape[0],1)
+        self.y_train = torch.tensor(y_train.values,dtype=torch.float)
         self.x_train_pred = self.x_train[0:len(self.y_train),]
 
-        self.l = torch.tensor(l.values)
+        self.l = torch.tensor(l.values,dtype=torch.float)
         
-        self.rho = torch.tensor(rho.values)
+        self.rho = torch.tensor(rho.values,dtype=torch.float)
         
         h = self.get_h(self.x_train)
-        self.W.to(device)
-        self.b.to(device)
+        #self.W.to(device)
+        #self.b.to(device)
         
-        self.betas.to(device)
+        #self.betas.to(device)
         print(self.betas.is_cuda)
         print("number of samples:",len(self.x_train))
         while count < n_iterations:
             
-        
             with torch.no_grad():
-                
                 jac = jacobian(self.predict_jacobian,self.betas)
                 loss = self.predict(self.x_train,self.y_train,self.x_train_pred)
                 pinv_jac = torch.linalg.pinv(jac)
+                
                 delta = torch.matmul(pinv_jac,loss)
                 self.betas -=delta*0.05
                 
-            #if count %10==0:
-            print(loss.abs().max(dim=0),loss.mean(dim=0))
-            print("final loss:",(loss**2).mean())
+            if count %10==0:
+                print(loss.abs().max(dim=0),loss.mean(dim=0))
+                print("final loss:",(loss**2).mean())
             count +=1
             print(count)
+        # for epoch in range(n_iterations):
+        
+            
+        #     self.optimizer.zero_grad()
+        #     outputs = self.forward(x_train_data)
+        #     loss = self.criterion(outputs, y_train_data)
+        #     loss.backward()
+        #     self.optimizer.step()
+            
+        #     #Print training statistics
+        #     if (epoch+1) % 10 == 0:
+        #         print("Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}"
+        #             .format(epoch+1, num_epochs, epoch+1, len(x_train_data), loss.item()))
 
     def predict_jacobian(self,betas):
         

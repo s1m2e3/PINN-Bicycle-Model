@@ -14,6 +14,7 @@ class NN(nn.Module):
     def __init__(self, input_size1, hidden_size, output_size):
         super(NN, self).__init__()
         print(input_size1)
+        
         self.fc1 = nn.Linear(input_size1, hidden_size)
         self.relu = nn.ReLU()
         self.fc2 = nn.Linear(hidden_size, output_size)
@@ -29,8 +30,13 @@ class NN(nn.Module):
         return out
 
     def train(self,num_epochs,x_train_data,y_train_data):
-        x_train_data = torch.tensor(np.array(x_train_data),dtype=torch.float)
-        y_train_data = torch.tensor(np.array(y_train_data),dtype=torch.float)
+        if torch.cuda.is_available():
+            dev = "cuda:0"
+        else:
+            dev = "cpu"
+        device = torch.device(dev)
+        x_train_data = torch.tensor(np.array(x_train_data),dtype=torch.float).to_device()
+        y_train_data = torch.tensor(np.array(y_train_data),dtype=torch.float).to_device()
         
         # print(self.forward(x_train_data)-y_train_data)
         # print(self.criterion(self.forward(x_train_data),y_train_data))
@@ -55,13 +61,17 @@ class LSTM(nn.Module):
         
         self.hidden_size = hidden_size
         self.num_layers = num_layers
-        
-        self.lstm = nn.LSTM(input_size,hidden_size, num_layers,batch_first=True,dtype=torch.double)
+        if torch.cuda.is_available():
+            dev = "cuda:0"
+            
+        else:
+            dev = "cpu"
+        self.lstm = nn.LSTM(input_size,hidden_size, num_layers,batch_first=True,dtype=torch.double).to(dev)
         self.relu = nn.ReLU()
         self.output_sequence_length = output_sequence_length
         self.input_sequence_length = input_sequence_length
-        self.fc1 = nn.Linear(hidden_size, hidden_size,dtype=torch.double)
-        self.fc2 = nn.Linear(hidden_size, output_size,dtype=torch.double)
+        self.fc1 = nn.Linear(hidden_size, hidden_size,dtype=torch.double).to(dev)
+        self.fc2 = nn.Linear(hidden_size, output_size,dtype=torch.double).to(dev)
         self.criterion = nn.MSELoss()
         self.optimizer = torch.optim.SGD(self.parameters(),lr=0.1)
 
@@ -80,11 +90,17 @@ class LSTM(nn.Module):
         return out
 
     def train(self,num_epochs,x_train_data,y_train_data):
-        x_train_data = torch.tensor(x_train_data,dtype=torch.double)
-        y_train_data = torch.tensor(y_train_data,dtype=torch.double)
-        
+        if torch.cuda.is_available():
+            dev = "cuda:0"
+            
+        else:
+            dev = "cpu"
+        device = torch.device(dev)
+        x_train_data = torch.tensor(x_train_data,dtype=torch.double).to(device)
+        y_train_data = torch.tensor(y_train_data,dtype=torch.double).to(device)
+        print(len(x_train_data))
         for epoch in range(num_epochs):
-        
+            
             self.optimizer.zero_grad()
             outputs = self.forward(x_train_data)
             
@@ -93,7 +109,9 @@ class LSTM(nn.Module):
             loss.backward()
             self.optimizer.step()
             
+
             # Print training statistics
             if (epoch+1) % 10 == 0:
+                print(torch.cuda.get_device_name(0))
                 print("Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}"
                     .format(epoch+1, num_epochs, epoch+1, len(x_train_data), loss.item()))
