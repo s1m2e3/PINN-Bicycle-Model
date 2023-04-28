@@ -13,17 +13,26 @@ def reshape_tensor(x, batch_size):
 class NN(nn.Module):
     def __init__(self, input_size1, hidden_size, output_size):
         super(NN, self).__init__()
-        print(input_size1)
         
-        self.fc1 = nn.Linear(input_size1, hidden_size)
-        self.relu = nn.ReLU()
-        self.fc2 = nn.Linear(hidden_size, output_size)
+        if torch.cuda.is_available():
+            dev = "cuda:0"
+        else:
+            dev = "cpu"
+
+        self.fc1 = nn.Linear(input_size1, hidden_size,dtype=torch.float).to(dev)
+        self.relu = nn.ReLU().to(dev)
+        self.fc2 = nn.Linear(hidden_size, output_size,dtype=torch.float).to(dev)
         self.optimizer = torch.optim.SGD(self.parameters(),lr=0.1)
         self.criterion = nn.MSELoss()
     def forward(self, x):
-        
-        
-        out = self.fc1(x)
+        if torch.cuda.is_available():
+            dev = "cuda:0"
+            
+        else:
+            dev = "cpu"
+        device = torch.device(dev)
+        out = torch.tensor(x,dtype=torch.float).to(device)
+        out = self.fc1(out)
         out = self.relu(out)
         out = self.fc2(out)
         
@@ -35,8 +44,8 @@ class NN(nn.Module):
         else:
             dev = "cpu"
         device = torch.device(dev)
-        x_train_data = torch.tensor(np.array(x_train_data),dtype=torch.float).to_device()
-        y_train_data = torch.tensor(np.array(y_train_data),dtype=torch.float).to_device()
+        x_train_data = torch.tensor(np.array(x_train_data),dtype=torch.float).to(device)
+        y_train_data = torch.tensor(np.array(y_train_data),dtype=torch.float).to(device)
         
         # print(self.forward(x_train_data)-y_train_data)
         # print(self.criterion(self.forward(x_train_data),y_train_data))
@@ -66,20 +75,26 @@ class LSTM(nn.Module):
             
         else:
             dev = "cpu"
-        self.lstm = nn.LSTM(input_size,hidden_size, num_layers,batch_first=True,dtype=torch.double).to(dev)
+        self.lstm = nn.LSTM(input_size,hidden_size, num_layers,batch_first=True,dtype=torch.float).to(dev)
         self.relu = nn.ReLU()
         self.output_sequence_length = output_sequence_length
         self.input_sequence_length = input_sequence_length
-        self.fc1 = nn.Linear(hidden_size, hidden_size,dtype=torch.double).to(dev)
-        self.fc2 = nn.Linear(hidden_size, output_size,dtype=torch.double).to(dev)
+        self.fc1 = nn.Linear(hidden_size, hidden_size,dtype=torch.float).to(dev)
+        self.fc2 = nn.Linear(hidden_size, output_size,dtype=torch.float).to(dev)
         self.criterion = nn.MSELoss()
         self.optimizer = torch.optim.SGD(self.parameters(),lr=0.1)
 
 
     def forward(self, x):
-        
-        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size,dtype=torch.double).to(x.device)
-        c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size,dtype=torch.double).to(x.device)
+        if torch.cuda.is_available():
+            dev = "cuda:0"
+            
+        else:
+            dev = "cpu"
+        device = torch.device(dev)
+        x = torch.tensor(x,dtype=torch.float).to(device)
+        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size,dtype=torch.float).to(x.device)
+        c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size,dtype=torch.float).to(x.device)
         out, (h_n, c_n) = self.lstm(x, (h0, c0))
         
         out = self.relu(out[:,-self.output_sequence_length:,:])
@@ -96,8 +111,8 @@ class LSTM(nn.Module):
         else:
             dev = "cpu"
         device = torch.device(dev)
-        x_train_data = torch.tensor(x_train_data,dtype=torch.double).to(device)
-        y_train_data = torch.tensor(y_train_data,dtype=torch.double).to(device)
+        x_train_data = torch.tensor(x_train_data,dtype=torch.float).to(device)
+        y_train_data = torch.tensor(y_train_data,dtype=torch.float).to(device)
         print(len(x_train_data))
         for epoch in range(num_epochs):
             
