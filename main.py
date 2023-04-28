@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from scipy.integrate import solve_ivp
 from bicycle_PINN import PIELM
+from bicycle_PINN import XTFC
 import datetime
 import utm
 from process import prep_df_reg
@@ -26,11 +27,6 @@ def conver_to_lstm_data(data,sequence_length):
     
     return new_data
 
-
-
-
-
-
 def main():
     sns.set()
     df = pd.read_csv("edited.csv")
@@ -50,20 +46,43 @@ def main():
     rho = test_df["steering_angle_rate"]
     x = (test_df["timestamp_posix"]-test_df["timestamp_posix"][0])/(test_df["timestamp_posix"][len(test_df)-1]-test_df["timestamp_posix"][0])
     y =(test_df[["x","y","heading","steering_angle"]]-test_df[["x","y","heading","steering_angle"]].min())/(test_df[["x","y","heading","steering_angle"]].max()-test_df[["x","y","heading","steering_angle"]].min())
-    #y= test_df[["x","y","heading","steering_angle"]]
+    y= test_df[["x","y","heading","steering_angle"]]
+    # plt.figure()
+    # plt.scatter(y["x"]-y["x"][0],y["y"]-y["y"][0])
+    # plt.show()
+    # plt.figure()
+    # plt.plot(y["heading"])
+    # plt.show()
+    # plt.figure()
+    # plt.plot(y["steering_angle"])
+    # plt.show()
     accuracy = 1e-5
-    n_iterations = int(1e5)
-    pielm = PIELM(n_nodes=50,input_size= x.shape[0],output_size=y.shape[1])
-    # x = x.iloc[0:20]
-    # y = y.iloc[0:10]
-    # l = l.iloc[0:20]
-    # rho = rho.iloc[0:20]
+    n_iterations = int(1e3)
+    n_nodes = 20
+    pielm = PIELM(n_nodes=n_nodes,input_size= x.shape[0],output_size=y.shape[1])
+    x = x.iloc[0:20]
+    y = y.iloc[0:10]
+    l = l.iloc[0:20]
+    rho = rho.iloc[0:20]
     pielm.train(accuracy,n_iterations,x,y,l,rho)    
-    # y_pred = pd.DataFrame((pielm.predict_no_reshape(pielm.x_train,pielm.y_train).detach().numpy())[:,:4])
-    # y_pred.columns = ["x","y","heading","steering_angle"]
-    # pielm_y = y_pred*((test_df[["x","y","heading","steering_angle"]].max()-test_df[["x","y","heading","steering_angle"]].min()))+test_df[["x","y","heading","steering_angle"]].min()
-    # y = y **((test_df[["x","y","heading","steering_angle"]].max()-test_df[["x","y","heading","steering_angle"]].min()))+test_df[["x","y","heading","steering_angle"]].min()
+    y_pred = pd.DataFrame(pielm.pred(x).detach().numpy()).T
     
+    y_pred.columns = ["x","y","heading","steering_angle"]
+    plt.figure()
+    plt.scatter(y["x"]-y["x"][0],y["y"]-y["y"][0])
+    plt.scatter(y_pred["x"]-y_pred["x"][0],y_pred["y"]-y_pred["y"][0])
+    plt.show()
+    plt.figure()
+    plt.plot(y["heading"])
+    plt.plot(y_pred["heading"])
+    plt.show()
+    plt.figure()
+    plt.plot(y["steering_angle"])
+    plt.plot(y_pred["steering_angle"])
+    plt.show()
+
+
+
     ## neural networks with only time:
     # n_nodes = 32
     # input_sequence_length = 50
