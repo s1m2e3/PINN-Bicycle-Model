@@ -25,13 +25,13 @@ class PIELM:
         count = 0
         error = 100
         
-        self.x_train = torch.tensor(x_train.values,dtype=torch.float).reshape(x_train.shape[0],1)
-        self.y_train = torch.tensor(y_train.values,dtype=torch.float)
+        self.x_train = torch.tensor(x_train,dtype=torch.float).reshape(x_train.shape[0],1)
+        self.y_train = torch.tensor(y_train,dtype=torch.float)
         self.x_train_pred = self.x_train[0:len(self.y_train),]
 
-        self.l = torch.tensor(l.values,dtype=torch.float)
+        self.l = torch.tensor(l,dtype=torch.float)
         
-        self.rho = torch.tensor(rho.values,dtype=torch.float)
+        self.rho = torch.tensor(rho,dtype=torch.float)
         
         h = self.get_h(self.x_train)
         #self.W.to(device)
@@ -157,7 +157,8 @@ class XTFC(PIELM):
 
     def predict_jacobian(self,betas):
         
-        x0 = -torch.matmul(self.get_h(self.x_train_pred),betas[0:self.nodes])[0]+self.y_train[0,0]
+        x0 = -torch.matmul(self.get_h(self.x_train_pred[0]),betas[0:self.nodes])[0]+self.y_train[0,0]
+        print(x0)
         y0 = -torch.matmul(self.get_h(self.x_train_pred),betas[self.nodes:2*self.nodes])[0]+self.y_train[0,1]
         theta0 = -torch.matmul(self.get_h(self.x_train_pred),betas[self.nodes*2:3*self.nodes])[0]+self.y_train[0,2]
         delta0 =-torch.matmul(self.get_h(self.x_train_pred),betas[self.nodes*3:4*self.nodes])[0]+self.y_train[0,3]
