@@ -34,32 +34,38 @@ def main():
     sns.set()
     df = pd.read_csv("edited.csv")
     df = df[df["temporaryId"]==df["temporaryId"].loc[0]].reset_index(drop=True)
+    df = df[df["sub_group"]==df["sub_group"].loc[1]].reset_index(drop=True)
+    df["heading"] = df["heading"]*np.pi/180
     test_df = df
-    n_iterations = int(1e0)
+    n_iterations = int(1e2)
     
     ## neural networks with only time:
 
     n_nodes = 512
     input_sequence_length = 50
     output_sequence_length = 10
-    stop = int(len(test_df)/10*7)
+    stop = int(len(test_df)/10*5)
     accuracy = 1e-5
     
     layers = 2
     hidden = 10
 
     ##PIELM - XTFC
-    n_nodes = 16
+    n_nodes = 40
     input_size = 1
     output_size = 4
 
     pielm_x = np.array((test_df["timestamp_posix"]-test_df["timestamp_posix"].min())/\
         (test_df["timestamp_posix"].max()-test_df["timestamp_posix"].min()))
+    
     pielm_y = np.array((test_df[["x","y","heading","steering_angle"]]-test_df[["x","y","heading","steering_angle"]].min())/\
         (test_df[["x","y","heading","steering_angle"]].max()-test_df[["x","y","heading","steering_angle"]].min()))
-    l = np.array((test_df["length"]-test_df["length"].min())/(test_df["length"].max()-test_df["length"].min()))
-    rho = np.array((test_df["steering_angle_rate"]-test_df["steering_angle_rate"].min())/\
-        (test_df["steering_angle_rate"].max()-test_df["steering_angle_rate"].min()))
+    # l = np.array((test_df["length"]-test_df["length"].min())/(test_df["length"].max()-test_df["length"].min()))
+    # rho = np.array((test_df["steering_angle_rate"]-test_df["steering_angle_rate"].min())/\
+    #     (test_df["steering_angle_rate"].max()-test_df["steering_angle_rate"].min()))
+    l = np.array(test_df['length'])
+    rho = np.array(test_df["steering_angle_rate"])
+
 
     pielm_x_train = pielm_x[:stop] 
     pielm_x_test = pielm_x[stop:] 
@@ -70,9 +76,53 @@ def main():
     rho_train = rho[:stop]
     rho_test = rho[stop:]
 
-    #pielm= PIELM(n_nodes,input_size,output_size,low_w=-5,high_w=5,low_b=-5,high_b=5,activation_function="tanh")
-    xtfc= XTFC(n_nodes,input_size,output_size,low_w=-5,high_w=5,low_b=-5,high_b=5,activation_function="tanh")
-    xtfc.train(accuracy, n_iterations,pielm_x_train,pielm_x_train,l_train,rho_train)
+    # pielm= PIELM(n_nodes,input_size,output_size,low_w=-1,high_w=1,low_b=-1,high_b=1,activation_function="tanh",length=10)
+    # pielm.train(accuracy, n_iterations,pielm_x_train,pielm_y_train,l_train,rho_train)
+    # y_pred = pielm.pred(pielm_x_train).cpu().detach().numpy().T
+    
+    # plt.figure()
+    # plt.scatter(pielm_y_train[:,0],pielm_y_train[:,1])
+    # plt.scatter(y_pred[:,0],y_pred[:,1])
+    # plt.show()
+    # plt.figure()
+    # plt.plot(pielm_y_train[:,0])
+    # plt.plot(y_pred[:,0])
+    # plt.show()
+    # plt.figure()
+    # plt.plot(pielm_y_train[:,1])
+    # plt.plot(y_pred[:,1])
+    # plt.show()
+    # plt.figure()
+    
+    
+    xtfc= XTFC(n_nodes,input_size,output_size,low_w=-1,high_w=1,low_b=-1,high_b=1,activation_function="tanh",length=10)
+    xtfc.train(accuracy, n_iterations,pielm_x_train,pielm_y_train,l_train,rho_train)
+    y_pred = xtfc.pred(pielm_x_train).cpu().detach().numpy().T
+    print(y_pred[:,0])
+    print(y_pred[:,1])
+    print(xtfc.betas[:n_nodes*2])
+    # plt.figure()
+    # plt.scatter(pielm_y_train[:,0],pielm_y_train[:,1])
+    # plt.scatter(y_pred[:,0],y_pred[:,1])
+    #plt.axvline(x=len(pielm_x_train-10))
+    # plt.show()
+    plt.figure()
+    plt.plot(pielm_y_train[:,0])
+    plt.plot(y_pred[:,0])
+    plt.axvline(x=len(pielm_x_train)-10)
+    plt.show()
+    plt.figure()
+    plt.plot(pielm_y_train[:,1])
+    plt.plot(y_pred[:,1])
+    plt.axvline(x=len(pielm_x_train)-10)
+    plt.show()
+    plt.figure()
+    
+
+
+
+
+
     #xtfc.train()
 
     ##neural networks with previous states:
