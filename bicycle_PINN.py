@@ -20,23 +20,32 @@ class PIELM:
         self.betas = torch.ones(size=(output_size*n_nodes,),requires_grad=True,dtype=torch.float)
         
 
-    def train(self,accuracy, n_iterations,x_train,y_train,l,rho,steering_angle,slip_angle,lambda_=1):
+    def train(self,accuracy, n_iterations,x_train,y_train,l,rho,steering_angle,slip_angle,speed_x,speed_y,lambda_=1):
         
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         count = 0
         error = 100
         self.lambda_ = lambda_
+        
+        z0 = -1
+        zf = 1
+        t0 = x_train[0]
+        tf = x_train[-1]
+        c = (zf-z0)/(tf-t0)
+        x_train = z0+c*(x_train-t0)
+        self.c = c
+
         self.x_train = torch.tensor(x_train,dtype=torch.float).reshape(x_train.shape[0],1)
+
         self.y_train = torch.tensor(y_train,dtype=torch.float)
         self.x_train_pred = self.x_train[:len(self.x_train)-self.length,]
+
         self.y_train_pred = self.y_train[:len(self.y_train)-self.length,]
-        print(len(self.x_train_pred))
-        print(len(self.y_train_pred))
         self.steering_angle = torch.tensor(steering_angle,dtype=torch.float)
         self.slip_angle = torch.tensor(slip_angle,dtype=torch.float)
-
+        self.speed_x = torch.tensor(speed_x,dtype=torch.float)
+        self.speed_y = torch.tensor(speed_y,dtype=torch.float)
         self.l = torch.tensor(l,dtype=torch.float)
-        
         self.rho = torch.tensor(rho,dtype=torch.float)
       
         #self.W.to(device)
@@ -53,7 +62,7 @@ class PIELM:
                 loss = self.predict_loss(self.x_train,self.y_train_pred,self.x_train_pred)
                 pinv_jac = torch.linalg.pinv(jac)
                 delta = torch.matmul(pinv_jac,loss)
-                self.betas -=delta*0.2
+                self.betas -=delta*0.1
             if count %10==0:
                 print(loss.abs().max(dim=0),loss.mean(dim=0))
                 #print(torch.mean(loss[0:4]))
@@ -102,21 +111,24 @@ class PIELM:
         l_pred_theta = self.y_train_pred[:,2]-htheta
         #l_pred_delta = self.y_train[:,3]-torch.matmul(self.get_h(self.x_train_pred),betas[self.nodes*3:4*self.nodes])
         
-        dhx = torch.matmul(self.get_dh(self.x_train),betas[0:self.nodes])
-        dhy = torch.matmul(self.get_dh(self.x_train),betas[self.nodes:2*self.nodes])
-        dhtheta = torch.matmul(self.get_dh(self.x_train),betas[self.nodes*2:3*self.nodes])
+        dhx = self.c*torch.matmul(self.get_dh(self.x_train),betas[0:self.nodes])
+        dhy = self.c*torch.matmul(self.get_dh(self.x_train),betas[self.nodes:2*self.nodes])
+        dhtheta = self.c*torch.matmul(self.get_dh(self.x_train),betas[self.nodes*2:3*self.nodes])
 
 
         l_x = dhx-(dhx**2+dhy**2)**(1/2)*torch.cos(htheta_full+self.slip_angle)
         l_y = dhy-(dhx**2+dhy**2)**(1/2)*torch.sin(htheta_full+self.slip_angle)
         l_theta = dhtheta-(dhx**2+dhy**2)**(1/2)*torch.tan(self.steering_angle)*torch.cos(self.slip_angle)/self.l
         #l_delta = torch.matmul(self.get_dh(self.x_train),betas[self.nodes*3:4*self.nodes])-self.rho
-        
+        l_pred_dhx = self.speed_x- dhx
+        l_pred_dhy = self.speed_y- dhy 
+
         #loss= torch.hstack((l_pred_x,l_pred_y,l_pred_theta,l_pred_delta,l_x,l_y,l_theta,l_delta))
         # loss= torch.hstack((l_pred_x,l_pred_y,l_x,l_y))
         loss= torch.hstack((self.lambda_*l_pred_x,self.lambda_*l_pred_y,self.lambda_*l_pred_theta,\
+                            self.lambda_*l_pred_dhx,self.lambda_*l_pred_dhy,\
                             (1-self.lambda_)*l_x,(1-self.lambda_)*l_y,(1-self.lambda_)*l_theta))
-
+   
         return loss
             
     def predict_loss(self,x,y,x_pred):
@@ -130,21 +142,26 @@ class PIELM:
         l_pred_x = y[:,0]-hx
         l_pred_y = y[:,1]-hy
         l_pred_theta = y[:,2]-htheta
+        
         #l_pred_delta = self.y_train[:,3]-torch.matmul(self.get_h(self.x_train_pred),betas[self.nodes*3:4*self.nodes])
         
-        dhx = torch.matmul(self.get_dh(x),self.betas[0:self.nodes])
-        dhy = torch.matmul(self.get_dh(x),self.betas[self.nodes:2*self.nodes])
-        dhtheta = torch.matmul(self.get_dh(x),self.betas[self.nodes*2:3*self.nodes])
-
+        dhx = self.c*torch.matmul(self.get_dh(x),self.betas[0:self.nodes])
+        dhy = self.c*torch.matmul(self.get_dh(x),self.betas[self.nodes:2*self.nodes])
+        dhtheta = self.c*torch.matmul(self.get_dh(x),self.betas[self.nodes*2:3*self.nodes])
+        
+      
+        #l_pred_dhy = 
 
         l_x = dhx-(dhx**2+dhy**2)**(1/2)*torch.cos(htheta_full+self.slip_angle)
         l_y = dhy-(dhx**2+dhy**2)**(1/2)*torch.sin(htheta_full+self.slip_angle)
         l_theta = dhtheta-(dhx**2+dhy**2)**(1/2)*torch.tan(self.steering_angle)*torch.cos(self.slip_angle)/self.l
         #l_delta = torch.matmul(self.get_dh(self.x_train),betas[self.nodes*3:4*self.nodes])-self.rho
-        
+        l_pred_dhx = self.speed_x- dhx
+        l_pred_dhy = self.speed_y- dhy 
         #loss= torch.hstack((l_pred_x,l_pred_y,l_pred_theta,l_pred_delta,l_x,l_y,l_theta,l_delta))
         # loss= torch.hstack((l_pred_x,l_pred_y,l_x,l_y))
         loss= torch.hstack((self.lambda_*l_pred_x,self.lambda_*l_pred_y,self.lambda_*l_pred_theta,\
+                            self.lambda_*l_pred_dhx,self.lambda_*l_pred_dhy,\
                             (1-self.lambda_)*l_x,(1-self.lambda_)*l_y,(1-self.lambda_)*l_theta))
    
         return loss    
@@ -156,6 +173,10 @@ class PIELM:
     
     def pred(self,x):
         
+        z0 = -1
+        t0 = x[0]
+        x = z0+self.c*(x-t0)
+
         x = torch.tensor(np.array(x),dtype=torch.float).reshape(x.shape[0],1)
         
         x_pred = torch.matmul(self.get_h(x),self.betas[0:self.nodes]) 
@@ -205,21 +226,22 @@ class XTFC(PIELM):
         # l_pred_delta = self.y_train[:,3]-hdelta
         
         
-        dhx =  torch.matmul(self.get_dh(self.x_train),betas[0:self.nodes])
-        dhy = torch.matmul(self.get_dh(self.x_train),betas[self.nodes:2*self.nodes])
-        dhtheta =  torch.matmul(self.get_dh(self.x_train),betas[self.nodes*2:3*self.nodes])
+        dhx =  self.c*torch.matmul(self.get_dh(self.x_train),betas[0:self.nodes])
+        dhy = self.c*torch.matmul(self.get_dh(self.x_train),betas[self.nodes:2*self.nodes])
+        dhtheta =  self.c*torch.matmul(self.get_dh(self.x_train),betas[self.nodes*2:3*self.nodes])
         # dhdelta = torch.matmul(self.get_dh(self.x_train),betas[self.nodes*3:4*self.nodes])
 
         l_x = dhx-(((dhx)**2+ (dhy)**2)**(1/2)*torch.cos(htheta_full+self.slip_angle))
         l_y = dhy-(((dhx)**2+ (dhy)**2)**(1/2)*torch.sin(htheta_full+self.slip_angle)) 
         l_theta = dhtheta - (((dhx)**2+ (dhy)**2)**(1/2))*torch.tan(self.steering_angle)*torch.cos(self.slip_angle)/self.l
         # l_delta = dhdelta-self.rho
-        
-        # loss= torch.hstack((l_pred_x,l_pred_y,l_pred_theta,l_pred_delta,l_x,l_y,l_theta,l_delta))
+        # l_pred_dhx = self.speed_x - dhx
+        # l_pred_dhy = self.speed_y - dhy 
+        #loss= torch.hstack((l_pred_x,l_pred_y,l_pred_theta,l_pred_delta,l_x,l_y,l_theta,l_delta))
+        # loss= torch.hstack((l_pred_x,l_pred_y,l_x,l_y))
         loss= torch.hstack((self.lambda_*l_pred_x,self.lambda_*l_pred_y,self.lambda_*l_pred_theta,\
                             (1-self.lambda_)*l_x,(1-self.lambda_)*l_y,(1-self.lambda_)*l_theta))
-        
-        
+        print(loss)
         return loss
             
     def predict_loss(self,x,y,x_pred):
@@ -237,9 +259,9 @@ class XTFC(PIELM):
         # l_pred_delta = y[:,3]-hdelta
 
 
-        dhx =  torch.matmul(self.get_dh(x),self.betas[0:self.nodes])
-        dhy = torch.matmul(self.get_dh(x),self.betas[self.nodes:2*self.nodes])
-        dhtheta =  torch.matmul(self.get_dh(x),self.betas[self.nodes*2:3*self.nodes])
+        dhx = self.c* torch.matmul(self.get_dh(x),self.betas[0:self.nodes])
+        dhy = self.c*torch.matmul(self.get_dh(x),self.betas[self.nodes:2*self.nodes])
+        dhtheta = self.c* torch.matmul(self.get_dh(x),self.betas[self.nodes*2:3*self.nodes])
         # dhdelta = torch.matmul(self.get_dh(x),self.betas[self.nodes*3:4*self.nodes])
 
         l_x = dhx-(((dhx)**2+ (dhy)**2)**(1/2)*torch.cos(self.y_train[:,2]))
@@ -247,10 +269,12 @@ class XTFC(PIELM):
         l_theta = dhtheta - (((dhx)**2+ (dhy)**2)**(1/2))*torch.tan(self.steering_angle)*torch.cos(self.slip_angle)/self.l
         # l_delta = dhdelta-self.rho
         
-        # loss= torch.hstack((l_pred_x,l_pred_y,l_pred_theta,l_pred_delta,l_x,l_y,l_theta,l_delta))
+        # l_pred_dhx = self.speed_x- dhx
+        # l_pred_dhy = self.speed_y- dhy 
+        #loss= torch.hstack((l_pred_x,l_pred_y,l_pred_theta,l_pred_delta,l_x,l_y,l_theta,l_delta))
+        # loss= torch.hstack((l_pred_x,l_pred_y,l_x,l_y))
         loss= torch.hstack((self.lambda_*l_pred_x,self.lambda_*l_pred_y,self.lambda_*l_pred_theta,\
-                            (1-self.lambda_)*l_x,(1-self.lambda_)*l_y,(1-self.lambda_)*l_theta))
-        
+                            (1-self.lambda_)*l_x,(1-self.lambda_)*l_y,(1-self.lambda_)*l_theta))  
         return loss
 
 

@@ -26,11 +26,11 @@ def get_curvature(data):
             for  index,row   in subdf.iterrows():
                 if index != subdf.index[-1]:
                     delta_time = subdf["timestamp_posix"].loc[index+1]-subdf["timestamp_posix"].loc[index]
-                    delta_vx = subdf["x"].loc[index+1]-subdf["x"].loc[index]
-                    delta_vy = subdf["y"].loc[index+1]-subdf["y"].loc[index]
+                    delta_x = subdf["x"].loc[index+1]-subdf["x"].loc[index]
+                    delta_y = subdf["y"].loc[index+1]-subdf["y"].loc[index]
+                    subdf["speed_x"].loc[index]=delta_x/delta_time
+                    subdf["speed_y"].loc[index]=delta_y/delta_time
                     
-                    subdf["speed_x"].loc[index]=delta_vx/delta_time
-                    subdf["speed_y"].loc[index]=delta_vy/delta_time
                     subdf["slip_angle"].loc[index]=np.arctan(subdf["speed_y"].loc[index]/subdf["speed_x"].loc[index])
                     subdf["steering_angle"].loc[index]=np.arctan(subdf["length"].loc[index]*np.tan(subdf["slip_angle"].loc[index]))
                     
@@ -63,7 +63,7 @@ def main():
     df = df[df["sub_group"]==df["sub_group"].loc[1]].reset_index(drop=True)
     df["heading"] = df["heading"]*np.pi/180
     test_df = df
-    n_iterations = int(1e2)
+    n_iterations = int(1e3)
     
 
     ##compute curvature radius
@@ -82,15 +82,12 @@ def main():
     hidden = 10
 
     ##PIELM - XTFC
-    n_nodes = 40
+    n_nodes = 60
     input_size = 1
     output_size = 4
 
-    pielm_x = np.array((test_df["timestamp_posix"]-test_df["timestamp_posix"].min())/\
-        (test_df["timestamp_posix"].max()-test_df["timestamp_posix"].min()))
-    
-    pielm_y = np.array((test_df[["x","y","heading",]]-test_df[["x","y","heading",]].min())/\
-        (test_df[["x","y","heading",]].max()-test_df[["x","y","heading",]].min()))
+    pielm_x = np.array((test_df["timestamp_posix"]))
+    pielm_y = np.array((test_df[["x","y","heading"]]))
     # l = np.array((test_df["length"]-test_df["length"].min())/(test_df["length"].max()-test_df["length"].min()))
     # rho = np.array((test_df["steering_angle_rate"]-test_df["steering_angle_rate"].min())/\
     #     (test_df["steering_angle_rate"].max()-test_df["steering_angle_rate"].min()))
@@ -98,6 +95,8 @@ def main():
     rho = np.array(test_df["steering_angle_rate"])
     steering_angle = np.array(test_df["steering_angle"])
     slip_angle = np.array(test_df["slip_angle"])
+    speed_x = np.array(test_df["speed_x"])
+    speed_y = np.array(test_df["speed_y"])
 
     pielm_x_train = pielm_x[:stop] 
     pielm_x_test = pielm_x[stop:] 
@@ -109,7 +108,9 @@ def main():
     rho_test = rho[stop:]
     steering_angle_train = steering_angle[:stop]
     slip_angle_train = slip_angle[:stop]
-
+    speed_x= speed_x[:stop]
+    speed_y= speed_y[:stop]
+    
 
     # pielm= PIELM(n_nodes,input_size,output_size,low_w=-1,high_w=1,low_b=-1,high_b=1,activation_function="tanh",length=10)
     # pielm.train(accuracy, n_iterations,pielm_x_train,pielm_y_train,l_train,rho_train,steering_angle_train,slip_angle_train,0.5)
@@ -132,73 +133,73 @@ def main():
     # plt.plot(y_pred[:,2])
     # plt.show()
     # plt.figure()
+    
     y_pred={}
-    for i in [0,2,4]:
+    for i in [1]:
         y_pred[i]={}
-        for j in range(2):
+        for j in [1]:
             lambda_ = 1-((j+1)/100)
             length= 10*i
-            xtfc= XTFC(n_nodes,input_size,output_size,length=length,low_w=-3,high_w=3,low_b=-3,high_b=3,activation_function="tanh")
-            xtfc.train(accuracy, n_iterations,pielm_x_train,pielm_y_train,l_train,rho_train,steering_angle_train,slip_angle_train,lambda_)
+            xtfc= XTFC(n_nodes,input_size,output_size,length=length,low_w=-1,high_w=1,low_b=-1,high_b=1,activation_function="tanh")
+            xtfc.train(accuracy, n_iterations,pielm_x_train,pielm_y_train,l_train,rho_train,steering_angle_train,slip_angle_train,speed_x,speed_y,lambda_)
             y_pred[i][j] = xtfc.pred(pielm_x_train).cpu().detach().numpy().T
+    plt.figure()
+    plt.plot(pielm_y_train[:,0])
+    plt.plot(y_pred[1][1][:,0])
+    #plt.axvline(x=len(pielm_x_train)-length)
+    plt.show()
+    plt.figure()
+    plt.plot(pielm_y_train[:,1])
+    plt.plot(y_pred[1][1][:,1])
+    #plt.axvline(x=len(pielm_x_train)-length)
+    plt.show()
+    plt.figure()
+    plt.plot(pielm_y_train[:,2])
+    plt.plot(y_pred[1][1][:,2])
+    #plt.axvline(x=len(pielm_x_train)-length)
+    plt.show()
     
-    for j in range(2):
-        plt.figure()
-        plt.scatter(pielm_y_train[:,0],pielm_y_train[:,1])
-        for i in y_pred:
-            plt.scatter(y_pred[i][j][:,0],y_pred[i][j][:,1])
-            #plt.axvline(x=len(pielm_x_train-10))
-        plt.legend(["ground_truth","1_sec_ahead","3_sec_ahead","5_sec_ahead"])
-        plt.title("x and y coordinates alignment")
-        plt.savefig("alignment_pure_data.png" if j ==0 else "alignment_phys_plus_data.png")
+    # for j in range[0]:
+    #     plt.figure()
+    #     plt.scatter(pielm_y_train[:,0],pielm_y_train[:,1])
+    #     for i in y_pred:
+    #         plt.scatter(y_pred[i][j][:,0],y_pred[i][j][:,1])
+    #         #plt.axvline(x=len(pielm_x_train-10))
+    #     plt.legend(["ground_truth","1_sec_ahead","3_sec_ahead","5_sec_ahead"])
+    #     plt.title("x and y coordinates alignment")
+    #     plt.savefig("alignment_pure_data.png" if j ==0 else "alignment_phys_plus_data.png")
 
-        plt.figure()
-        plt.plot(pielm_y_train[:,0])
-        for i in y_pred:
-            plt.plot(y_pred[i][j][:,0])
-            plt.axvline(x=len(pielm_x_train)-(10*(i+1)),c="black")
-        plt.legend(["ground_truth","1_sec_ahead","1_sec_cut","3_sec_ahead","3_sec_cut","5_sec_ahead","5_sec_cut"])
-        plt.title("x coordinates over time")
-        plt.savefig("x_coordinates_pure_data.png" if j ==0 else "x_coordinates_phys_plus_data.png")
+    #     plt.figure()
+    #     plt.plot(pielm_y_train[:,0])
+    #     for i in y_pred:
+    #         plt.plot(y_pred[i][j][:,0])
+    #         plt.axvline(x=len(pielm_x_train)-(10*(i+1)),c="black")
+    #     plt.legend(["ground_truth","1_sec_ahead","1_sec_cut","3_sec_ahead","3_sec_cut","5_sec_ahead","5_sec_cut"])
+    #     plt.title("x coordinates over time")
+    #     plt.savefig("x_coordinates_pure_data.png" if j ==0 else "x_coordinates_phys_plus_data.png")
 
-        plt.figure()
-        plt.plot(pielm_y_train[:,1])
-        for i in y_pred:
-            plt.plot(y_pred[i][j][:,1])
-            plt.axvline(x=len(pielm_x_train)-(10*(i+1)),c="black")
-        #plt.axvline(x=len(pielm_x_train-10))
-        plt.legend(["ground_truth","1_sec_ahead","1_sec_cut","3_sec_ahead","3_sec_cut","5_sec_ahead","5_sec_cut"])
-        plt.title("y coordinates over time")
-        plt.savefig("y_coordinates_pure_data.png" if j ==0 else "y_coordinates_phys_plus_data.png")
+    #     plt.figure()
+    #     plt.plot(pielm_y_train[:,1])
+    #     for i in y_pred:
+    #         plt.plot(y_pred[i][j][:,1])
+    #         plt.axvline(x=len(pielm_x_train)-(10*(i+1)),c="black")
+    #     #plt.axvline(x=len(pielm_x_train-10))
+    #     plt.legend(["ground_truth","1_sec_ahead","1_sec_cut","3_sec_ahead","3_sec_cut","5_sec_ahead","5_sec_cut"])
+    #     plt.title("y coordinates over time")
+    #     plt.savefig("y_coordinates_pure_data.png" if j ==0 else "y_coordinates_phys_plus_data.png")
 
-        plt.figure()
-        plt.plot(pielm_y_train[:,2])
-        for i in y_pred:
-            plt.plot(y_pred[i][j][:,2])
-            plt.axvline(x=len(pielm_x_train)-(10*(i+1)),c="black")
-        #plt.axvline(x=len(pielm_x_train-10))
-        plt.legend(["ground_truth","1_sec_ahead","1_sec_cut","3_sec_ahead","3_sec_cut","5_sec_ahead","5_sec_cut"])
-        plt.title("heading over time")
-        plt.savefig("heading_pure_data.png" if j ==0 else "heading_phys_plus_data.png")
+    #     plt.figure()
+    #     plt.plot(pielm_y_train[:,2])
+    #     for i in y_pred:
+    #         plt.plot(y_pred[i][j][:,2])
+    #         plt.axvline(x=len(pielm_x_train)-(10*(i+1)),c="black")
+    #     #plt.axvline(x=len(pielm_x_train-10))
+    #     plt.legend(["ground_truth","1_sec_ahead","1_sec_cut","3_sec_ahead","3_sec_cut","5_sec_ahead","5_sec_cut"])
+    #     plt.title("heading over time")
+    #     plt.savefig("heading_pure_data.png" if j ==0 else "heading_phys_plus_data.png")
 
 
-    # plt.figure()
     
-    
-    # plt.plot(pielm_y_train[:,0])
-    # plt.plot(y_pred[:,0])
-    # #plt.axvline(x=len(pielm_x_train)-length)
-    # plt.show()
-    # plt.figure()
-    # plt.plot(pielm_y_train[:,1])
-    # plt.plot(y_pred[:,1])
-    # #plt.axvline(x=len(pielm_x_train)-length)
-    # plt.show()
-    # plt.figure()
-    # plt.plot(pielm_y_train[:,2])
-    # plt.plot(y_pred[:,2])
-    # #plt.axvline(x=len(pielm_x_train)-length)
-    # plt.show()
         
 
 
