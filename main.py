@@ -17,6 +17,7 @@ from model import *
 def get_curvature(data):
     data["slip_angle"] = 0
     data["curvature_radius"]=0
+    data["heading_ratio"]=0
 
     ## compute bisector
     for id in data["temporaryId"].unique():
@@ -28,12 +29,12 @@ def get_curvature(data):
                     delta_time = subdf["timestamp_posix"].loc[index+1]-subdf["timestamp_posix"].loc[index]
                     delta_x = subdf["x"].loc[index+1]-subdf["x"].loc[index]
                     delta_y = subdf["y"].loc[index+1]-subdf["y"].loc[index]
-                    subdf["speed_x"].loc[index]=delta_x/delta_time
-                    subdf["speed_y"].loc[index]=delta_y/delta_time
-                    
-                    subdf["slip_angle"].loc[index]=np.arctan(subdf["speed_y"].loc[index]/subdf["speed_x"].loc[index])
-                    subdf["steering_angle"].loc[index]=np.arctan(subdf["length"].loc[index]*np.tan(subdf["slip_angle"].loc[index]))
-                    
+                    subdf["speed_x"].loc[index] = delta_x/delta_time
+                    subdf["speed_y"].loc[index] = delta_y/delta_time
+                    subdf["slip_angle"].loc[index] = np.arctan(subdf["speed_y"].loc[index]/subdf["speed_x"].loc[index])
+                    subdf["steering_angle"].loc[index] = np.arctan(subdf["length"].loc[index]*np.tan(subdf["slip_angle"].loc[index]))
+                    subdf["curvature_radius"].loc[index]= subdf["length"].loc[index]/(np.tan(subdf["steering_angle"].loc[index])*np.cos(subdf["slip_angle"].loc[index]))
+                    subdf["heading_ratio"].loc[index] = subdf["speed"].loc[index]/subdf["curvature_radius"].loc[index]
 
             indices = subdf.index
             data.loc[indices]=subdf
@@ -63,7 +64,7 @@ def main():
     df = df[df["sub_group"]==df["sub_group"].loc[1]].reset_index(drop=True)
     df["heading"] = df["heading"]*np.pi/180
     test_df = df
-    n_iterations = int(1e3)
+    n_iterations = int(1e2)
     
 
     ##compute curvature radius
@@ -82,7 +83,7 @@ def main():
     hidden = 10
 
     ##PIELM - XTFC
-    n_nodes = 60
+    n_nodes = 80
     input_size = 1
     output_size = 4
 
@@ -97,11 +98,13 @@ def main():
     slip_angle = np.array(test_df["slip_angle"])
     speed_x = np.array(test_df["speed_x"])
     speed_y = np.array(test_df["speed_y"])
+    heading_ratio = np.array(test_df["heading_ratio"])
 
     pielm_x_train = pielm_x[:stop] 
     pielm_x_test = pielm_x[stop:] 
     pielm_y_train = pielm_y[:stop]
     pielm_y_test = pielm_y[stop:] 
+
     l_train = l[:stop]
     l_test = l[stop:] 
     rho_train = rho[:stop]
@@ -110,7 +113,7 @@ def main():
     slip_angle_train = slip_angle[:stop]
     speed_x= speed_x[:stop]
     speed_y= speed_y[:stop]
-    
+    heading_ratio = heading_ratio[:stop]
 
     # pielm= PIELM(n_nodes,input_size,output_size,low_w=-1,high_w=1,low_b=-1,high_b=1,activation_function="tanh",length=10)
     # pielm.train(accuracy, n_iterations,pielm_x_train,pielm_y_train,l_train,rho_train,steering_angle_train,slip_angle_train,0.5)
@@ -138,26 +141,37 @@ def main():
     for i in [1]:
         y_pred[i]={}
         for j in [1]:
-            lambda_ = 1-((j+1)/100)
-            length= 10*i
-            xtfc= XTFC(n_nodes,input_size,output_size,length=length,low_w=-1,high_w=1,low_b=-1,high_b=1,activation_function="tanh")
-            xtfc.train(accuracy, n_iterations,pielm_x_train,pielm_y_train,l_train,rho_train,steering_angle_train,slip_angle_train,speed_x,speed_y,lambda_)
+            lambda_ = 1-((j+4)/100)
+            length= 150*i
+            xtfc= XTFC(n_nodes,input_size,output_size,length=length,low_w=-5,high_w=5,low_b=-5,high_b=5,activation_function="tanh")
+            xtfc.train(accuracy, n_iterations,pielm_x_train,pielm_y_train,l_train,rho_train,steering_angle_train,slip_angle_train,speed_x,speed_y,heading_ratio,lambda_)
             y_pred[i][j] = xtfc.pred(pielm_x_train).cpu().detach().numpy().T
+    plt.figure()
+    plt.scatter(pielm_y_train[:,0],pielm_y_train[:,1])
+    plt.scatter(y_pred[1][1][:,0],y_pred[1][1][:,1])
+    plt.axvline(x=pielm_y_train[-length,0])
+    plt.axhline(y=pielm_y_train[-length,1])
+    plt.show()
     plt.figure()
     plt.plot(pielm_y_train[:,0])
     plt.plot(y_pred[1][1][:,0])
-    #plt.axvline(x=len(pielm_x_train)-length)
+    plt.axvline(x=len(pielm_x_train)-length)
     plt.show()
     plt.figure()
     plt.plot(pielm_y_train[:,1])
     plt.plot(y_pred[1][1][:,1])
-    #plt.axvline(x=len(pielm_x_train)-length)
+    plt.axvline(x=len(pielm_x_train)-length)
     plt.show()
     plt.figure()
     plt.plot(pielm_y_train[:,2])
-    plt.plot(y_pred[1][1][:,2])
-    #plt.axvline(x=len(pielm_x_train)-length)
+    #plt.plot(y_pred[1][1][:,2])
     plt.show()
+    plt.figure()
+    # plt.plot(pielm_y_train[:,2])
+    plt.plot(y_pred[1][1][:,2])
+    plt.show()
+    # plt.axvline(x=len(pielm_x_train)-length)
+    
     
     # for j in range[0]:
     #     plt.figure()
