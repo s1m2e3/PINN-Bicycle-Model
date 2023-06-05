@@ -14,7 +14,28 @@ class XTFC_veh(PIELM):
         self.d = d
 
     def predict_jacobian(self,betas):
+
+        init_x_1 = self.y_train[0,0]        
+        init_hx_1 = 
         
+        final_x_1 = self.y_train[-1,0]
+        final_hx_1 = 
+
+        init_y_1 = self.y_train[0,1]        
+        final_y_1 = self.y_train[-1,1]
+
+        init_theta_1 = self.y_train[0,2]        
+        final_theta_1 = self.y_train[-1,2]
+
+        init_dx_1 = self.y_train[0,3]        
+        init_dhx_1 = 
+
+        init_dy_1 = self.y_train[0,4]
+
+        init_ddelta_1 = self.y_train[0,5]        
+        
+        switch_1 = 
+
         
         hx_1 = torch.matmul(torch.add(self.get_h(self.x_train_pred),-self.get_h(self.x_train_pred[0])),betas[0:self.nodes])\
             + self.y_train[0,0]
