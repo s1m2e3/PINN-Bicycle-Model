@@ -7,10 +7,10 @@ class XTFC_veh(PIELM):
         self.length= length
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.nodes = n_nodes
-        self.W = (torch.randn(size=(n_nodes,1),dtype=torch.double)*(high_w-low_w)+low_w)
-        self.b = (torch.randn(size=(n_nodes,1),dtype=torch.double)*(high_b-low_b)+low_b)
+        self.W = (torch.randn(size=(n_nodes,1),dtype=torch.float)*(high_w-low_w)+low_w)
+        self.b = (torch.randn(size=(n_nodes,1),dtype=torch.float)*(high_b-low_b)+low_b)
         
-        self.betas = torch.ones(size=(2*output_size*n_nodes,),requires_grad=True,dtype=torch.double)
+        self.betas = torch.ones(size=(2*output_size*n_nodes,),requires_grad=True,dtype=torch.float)
         #betas 0:n_nodes = pred_x_1
         #betas n_nodes:n_nodes*2 = pred_y_1
         #betas n_nodes*2:n_nodes*3 = pred_theta_1
@@ -114,9 +114,10 @@ class XTFC_veh(PIELM):
         theta(f)       [1,t]
         """""
         
-        final_time = 10
+        final_time = self.x_train[-1].numpy()[0]
+        
         support_function_matrix = np.array([[1,0,0,0],[0,final_time,final_time**2,final_time**3],[0,1,0,0],[0,0,2,0]])
-        coefficients_matrix = torch.tensor(np.linalg.inv(support_function_matrix))
+        coefficients_matrix = torch.tensor(np.linalg.inv(support_function_matrix),dtype=torch.float)
         
         free_support_function_matrix = torch.hstack((torch.ones(size=self.x_train.shape),self.x_train,self.x_train**2,self.x_train**3))
         d_free_support_function_matrix = torch.hstack((torch.zeros(size=self.x_train.shape),torch.ones(size=self.x_train.shape),2*self.x_train,3*self.x_train**2))
@@ -244,7 +245,7 @@ class XTFC_veh(PIELM):
 
 
         support_function_matrix = np.array([[1,0],[1,final_time]])
-        coefficients_matrix = torch.tensor(np.linalg.inv(support_function_matrix))
+        coefficients_matrix = torch.tensor(np.linalg.inv(support_function_matrix),dtype=torch.float)
         
         free_support_function_matrix = torch.hstack((torch.ones(size=self.x_train.shape),self.x_train))
         d_free_support_function_matrix = torch.hstack((torch.zeros(size=self.x_train.shape),torch.ones(size=self.x_train.shape)))
@@ -259,39 +260,41 @@ class XTFC_veh(PIELM):
         
         phi1_theta1_init = phi1*init_theta_1
         phi1_theta2_init = phi1*init_theta_2
-        phi2_theta1_final = phi1*final_theta_1
-        phi2_theta2_final = phi1*final_theta_2
+        phi2_theta1_final = phi2*final_theta_1
+        phi2_theta2_final = phi2*final_theta_2
        
+        d_phi1_theta1_init = d_phi1*init_theta_1
+        d_phi1_theta2_init = d_phi1*init_theta_2
+        d_phi2_theta1_final = d_phi2*final_theta_1
+        d_phi2_theta2_final = d_phi2*final_theta_2
 
 
-        htheta_1 = torch.matmul(h.add(phi1_h1).add(phi2_hf),btheta_1)\
-              .add(phis[0]*init_theta_1).add(phis[1]*final_theta_1)
-        dhtheta_1 = self.c*torch.matmul(self.get_dh(self.x_train).add(d_phis[0]*init_h_1).add(d_phis[1]*final_h_1),btheta_1)\
-              .add(d_phis[0]*init_theta_1).add(d_phis[1]*final_theta_1) 
-        hdelta_1 = torch.matmul(self.get_h(self.x_train),betas[self.nodes*3:self.nodes*4])
-        dhdelta_1 = torch.matmul(self.get_dh(self.x_train),betas[self.nodes*3:self.nodes*4])
+        htheta_1 = torch.matmul(h.add(phi1_h1).add(phi2_hf),btheta_1).add(phi1_theta1_init).add(phi2_theta1_final)
+        dhtheta_1 = self.c*torch.matmul(dh.add(d_phi1_h1).add(d_phi2_hf),btheta_1).add(d_phi1_theta1_init).add(d_phi2_theta1_final)
 
-        htheta_2 = torch.matmul(self.get_h(self.x_train).add(phis[0]*init_h_2).add(phis[1]*final_h_2),btheta_2)\
-              .add(phis[0]*init_theta_2).add(phis[1]*final_theta_2)
-        dhtheta_2 = self.c*torch.matmul(self.get_dh(self.x_train).add(d_phis[0]*init_h_2).add(d_phis[1]*final_h_2),btheta_2)\
-              .add(d_phis[0]*init_theta_2).add(d_phis[1]*final_theta_2) 
-        hdelta_2 = torch.matmul(self.get_h(self.x_train),betas[self.nodes*13:self.nodes*14])
-        dhdelta_2 = torch.matmul(self.get_dh(self.x_train),betas[self.nodes*13:self.nodes*14])
+        hdelta_1 = torch.matmul(h,bdelta_1)
+        dhdelta_1 = torch.matmul(dh,bdelta_1)
+
+        htheta_2 = torch.matmul(h.add(phi1_h1).add(phi2_hf),btheta_2).add(phi1_theta2_init).add(phi2_theta2_final)
+        dhtheta_2 = self.c*torch.matmul(dh.add(d_phi1_h1).add(d_phi2_hf),btheta_2).add(d_phi1_theta2_init).add(d_phi2_theta2_final)
+
+        hdelta_2 = torch.matmul(h,bdelta_2)
+        dhdelta_2 = torch.matmul(dh,bdelta_2)
+
         
+        lambda_x_1 = torch.matmul(h,blambda_x_1)
+        lambda_y_1 = torch.matmul(h,blambda_y_1)
+        lambda_dx_1 = torch.matmul(h,blambda_dx_1)
+        lambda_dy_1= torch.matmul(h,blambda_dy_1)
+        lambda_dtheta_1 = torch.matmul(h,blambda_dtheta_1)
+        lambda_ddelta_1 = torch.matmul(h,blambda_ddelta_1)
 
-        lambda_x_1 = torch.matmul(self.get_h(self.x_train),betas[self.nodes*4:self.nodes*5])
-        lambda_y_1 = torch.matmul(self.get_h(self.x_train),betas[self.nodes*5:self.nodes*6])
-        lambda_dx_1 = torch.matmul(self.get_h(self.x_train),betas[self.nodes*6:self.nodes*7])
-        lambda_dy_1= torch.matmul(self.get_h(self.x_train),betas[self.nodes*7:self.nodes*8])
-        lambda_dtheta_1 = torch.matmul(self.get_h(self.x_train),betas[self.nodes*8:self.nodes*9])
-        lambda_ddelta_1 = torch.matmul(self.get_h(self.x_train),betas[self.nodes*9:self.nodes*10])
-
-        lambda_x_2 = torch.matmul(self.get_h(self.x_train),betas[self.nodes*14:self.nodes*15])
-        lambda_y_2 = torch.matmul(self.get_h(self.x_train),betas[self.nodes*15:self.nodes*16])
-        lambda_dx_2 = torch.matmul(self.get_h(self.x_train),betas[self.nodes*16:self.nodes*17])
-        lambda_dy_2= torch.matmul(self.get_h(self.x_train),betas[self.nodes*17:self.nodes*18])
-        lambda_dtheta_2 = torch.matmul(self.get_h(self.x_train),betas[self.nodes*18:self.nodes*19])
-        lambda_ddelta_2 = torch.matmul(self.get_h(self.x_train),betas[self.nodes*19:self.nodes*20])
+        lambda_x_2 = torch.matmul(h,blambda_x_2)
+        lambda_y_2 = torch.matmul(h,blambda_y_2)
+        lambda_dx_2 = torch.matmul(h,blambda_dx_2)
+        lambda_dy_2= torch.matmul(h,blambda_dy_2)
+        lambda_dtheta_2 = torch.matmul(h,blambda_dtheta_2)
+        lambda_ddelta_2 = torch.matmul(h,blambda_ddelta_2)
 
         #define pre-computations to make your life happier
         v_1 = (dhx_1**2+dhy_1**2)**(1/2)
@@ -342,6 +345,30 @@ class XTFC_veh(PIELM):
         l_lambda_dtheta_2 =lambda_dtheta_2 -(lambda_dx_2*v_2*sin_theta_2-lambda_dy_2*v_2*cos_theta_2)
         l_lambda_ddelta_2 =lambda_ddelta_2 -(-lambda_dtheta_2/self.l*cos_slip_2*v_2*(1/torch.cos(hdelta_2))**2)
             
+        print(l_dx_1.shape)
+        print(l_dy_1.shape)
+        print(l_ddx_1.shape)
+        print(l_ddy_1.shape)
+        print(l_dtheta_1.shape)
+        print(l_ddelta_1.shape)
+        print(l_lambda_dx_1.shape)
+        print(l_lambda_dy_1.shape)
+        print(l_lambda_ddx_1.shape)
+        print(l_lambda_ddy_1.shape)
+        print(l_lambda_dtheta_1.shape)
+        print(l_lambda_ddelta_1.shape)
+        print(l_dy_2.shape)
+        print(l_ddx_2.shape)
+        print(l_ddy_2.shape)
+        print(l_dtheta_2.shape)
+        print(l_ddelta_2.shape)
+        print(l_lambda_dx_2.shape)
+        print(l_lambda_dy_2.shape)
+        print(l_lambda_ddx_2.shape)
+        print(l_lambda_ddy_2.shape)
+        print(l_lambda_dtheta_2.shape)
+        print(l_lambda_ddelta_2.shape)
+
 
         loss= torch.hstack((  l_dx_1,
                               l_dy_1,
@@ -354,7 +381,8 @@ class XTFC_veh(PIELM):
                               l_lambda_ddx_1,
                               l_lambda_ddy_1,
                               l_lambda_dtheta_1,
-                              l_lambda_ddelta_1,l_dx_2,
+                              l_lambda_ddelta_1,
+                              l_dx_2,
                               l_dy_2,
                               l_ddx_2,
                               l_ddy_2,
@@ -598,10 +626,10 @@ class XTFC_veh(PIELM):
         x_train = z0+c*(x_train-t0)
         self.c = c
         
-        self.x_train = torch.tensor(x_train,dtype=torch.double).reshape(x_train.shape[0],1)
-        self.y_train_1 = torch.tensor(y_train_1,dtype=torch.double)
-        self.y_train_2 = torch.tensor(y_train_2,dtype=torch.double)
-        self.l = torch.tensor(l,dtype=torch.double)
+        self.x_train = torch.tensor(x_train,dtype=torch.float).reshape(x_train.shape[0],1)
+        self.y_train_1 = torch.tensor(y_train_1,dtype=torch.float)
+        self.y_train_2 = torch.tensor(y_train_2,dtype=torch.float)
+        self.l = torch.tensor(l,dtype=torch.float)
     
         print(self.betas.is_cuda)
         print("number of samples:",len(self.x_train))
