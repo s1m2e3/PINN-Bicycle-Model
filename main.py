@@ -213,13 +213,6 @@ def main():
     #     plt.savefig("heading_pure_data.png" if j ==0 else "heading_phys_plus_data.png")
 
 
-    
-        
-
-
-
-
-
     #xtfc.train()
 
     ##neural networks with previous states:

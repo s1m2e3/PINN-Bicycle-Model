@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom">
+<Document>
+	<name>Speedway - Mountain</name>
+	<gx:CascadingStyle kml:id="__managed_style_183B95868D29CC79899A">
+		<Style>
+			<IconStyle>
+				<Icon>
+					<href>https://earth.google.com/earth/rpc/cc/icon?color=1976d2&amp;id=2000&amp;scale=4</href>
+				</Icon>
+				<hotSpot x="64" y="128" xunits="pixels" yunits="insetPixels"/>
+			</IconStyle>
+			<LabelStyle>
+			</LabelStyle>
+			<LineStyle>
+				<color>ff2dc0fb</color>
+				<width>4</width>
+			</LineStyle>
+			<PolyStyle>
+				<color>40ffffff</color>
+			</PolyStyle>
+			<BalloonStyle>
+				<displayMode>hide</displayMode>
+			</BalloonStyle>
+		</Style>
+	</gx:CascadingStyle>
+	<gx:CascadingStyle kml:id="__managed_style_22C0DCAE4729CC79899A">
+		<Style>
+			<IconStyle>
+				<scale>1.2</scale>
+				<Icon>
+					<href>https://earth.google.com/earth/rpc/cc/icon?color=1976d2&amp;id=2000&amp;scale=4</href>
+				</Icon>
+				<hotSpot x="64" y="128" xunits="pixels" yunits="insetPixels"/>
+			</IconStyle>
+			<LabelStyle>
+			</LabelStyle>
+			<LineStyle>
+				<color>ff2dc0fb</color>
+				<width>6</width>
+			</LineStyle>
+			<PolyStyle>
+				<color>40ffffff</color>
+			</PolyStyle>
+			<BalloonStyle>
+				<displayMode>hide</displayMode>
+			</BalloonStyle>
+		</Style>
+	</gx:CascadingStyle>
+	<StyleMap id="__managed_style_0203E0E16C29CC79899A">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#__managed_style_183B95868D29CC79899A</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#__managed_style_22C0DCAE4729CC79899A</styleUrl>
+		</Pair>
+	</StyleMap>
+	<Placemark id="0E02614A9929CC798996">
+		<name>E-W init car</name>
+		<LookAt>
+			<longitude>-110.9352824516871</longitude>
+			<latitude>32.23585764085414</latitude>
+			<altitude>752.1908262107588</altitude>
+			<heading>-91.43175698282211</heading>
+			<tilt>0.2492494691793523</tilt>
+			<gx:fovy>35</gx:fovy>
+			<range>213.7838258322881</range>
+			<altitudeMode>absolute</altitudeMode>
+		</LookAt>
+		<styleUrl>#__managed_style_0203E0E16C29CC79899A</styleUrl>
+		<Point>
+			<coordinates>-110.9353369807636,32.23667317104234,752.5567530151058</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark id="068A799DAE29CC7E2981">
+		<name>E-W final</name>
+		<LookAt>
+			<longitude>-110.9352824492662</longitude>
+			<latitude>32.23585764636968</latitude>
+			<altitude>752.1907884835007</altitude>
+			<heading>268.5682892961929</heading>
+			<tilt>0</tilt>
+			<gx:fovy>35</gx:fovy>
+			<range>213.7839880754836</range>
+			<altitudeMode>absolute</altitudeMode>
+		</LookAt>
+		<styleUrl>#__managed_style_0203E0E16C29CC79899A</styleUrl>
+		<Point>
+			<coordinates>-110.9353448848337,32.23576376197846,751.9856920061909</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark id="0A976F217929CC7E9BF5">
+		<name>N-S init</name>
+		<LookAt>
+			<longitude>-110.9352578591303</longitude>
+			<latitude>32.23573645012046</latitude>
+			<altitude>751.1583578952986</altitude>
+			<heading>268.5682889415451</heading>
+			<tilt>0</tilt>
+			<gx:fovy>35</gx:fovy>
+			<range>297.3024509172683</range>
+			<altitudeMode>absolute</altitudeMode>
+		</LookAt>
+		<styleUrl>#__managed_style_0203E0E16C29CC79899A</styleUrl>
+		<Point>
+			<coordinates>-110.9358393537715,32.23604472097196,753.1754686008932</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark id="036B21395D29CC7ED65B">
+		<name>N-S final</name>
+		<LookAt>
+			<longitude>-110.9352578590804</longitude>
+			<latitude>32.23573645017328</latitude>
+			<altitude>751.1583578952986</altitude>
+			<heading>268.5682889415451</heading>
+			<tilt>0</tilt>
+			<gx:fovy>35</gx:fovy>
+			<range>297.3024509172683</range>
+			<altitudeMode>absolute</altitudeMode>
+		</LookAt>
+		<styleUrl>#__managed_style_0203E0E16C29CC79899A</styleUrl>
+		<Point>
+			<coordinates>-110.9348823139799,32.23602073251718,752.1998426486626</coordinates>
+		</Point>
+	</Placemark>
+</Document>
+</kml>
