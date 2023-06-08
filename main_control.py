@@ -40,21 +40,21 @@ def main():
     #             x2_final = utm_coord[0] 
     #             y2_final = utm_coord[1]
     
-    x1_init = 506125
-    y1_init = 3566618
-    x1_final = 506059
-    y1_final = 3566618
-    x2_init  = 506092
-    y2_init  = 3566646
-    x2_final = 506092
-    y2_final = 3566571
+    x1_init = 125
+    y1_init = 618
+    x1_final = 59
+    y1_final = 618
+    x2_init  = 92
+    y2_init  = 646
+    x2_final = 92
+    y2_final = 571
     theta1_init = np.pi
     theta1_final = np.pi
     theta2_init = 3*np.pi/4
     theta2_final = 3*np.pi/4
     
     v1x_init = -10
-    v1y_init = 0
+    v1y_init = 0.1
     a1x_init = -2
     a1y_init = 0
     v1x_final = 0
@@ -62,7 +62,7 @@ def main():
     a1x_final = 0
     a1y_final = 0
     
-    v2x_init = 0
+    v2x_init = 0.1
     v2y_init = -10
     a2x_init = 0
     a2y_init = -2
@@ -76,9 +76,9 @@ def main():
           [x1_final,y1_final,theta1_final,v1x_final,v1y_final,a1x_final,a1y_final]])
     car2 = np.array([[x2_init,y2_init,theta2_init,v2x_init,v2y_init,a2x_init,a2y_init],\
           [x2_final,y2_final,theta2_final,v2x_final,v2y_final,a2x_final,a2y_final]])
-    time = np.arange(1,10,0.1)
+    time = np.arange(0,10,0.1)
     
-    n_nodes = 30
+    n_nodes = 100
     n_iterations = 1e2
 
     states = 4
@@ -86,6 +86,57 @@ def main():
     output_size = states+co_states
     model = XTFC_veh(n_nodes,1,output_size,length=0)
     model.train(n_iterations=n_iterations,x_train=time,y_train_1=car1,y_train_2=car2)
+    predictions = model.pred()
+    car1 = predictions[:,0:10].detach().numpy()
+    car2 = predictions[:,10:20].detach().numpy()
+    xcar1= car1[:,0]
+    xcar2= car2[:,0]
+    ycar1= car1[:,1]
+    ycar2= car2[:,1]
+    vxcar1= car1[:,4]
+    vxcar2= car2[:,4]
+    vycar1= car1[:,5]
+    vycar2= car2[:,5]
+    axcar1= car1[:,8]
+    axcar2= car2[:,8]
+    aycar1= car1[:,9]
+    aycar2= car2[:,9]
+    plt.figure()
+    plt.plot(xcar1,ycar1)
+    plt.plot(xcar2,ycar2)
+    plt.title("vehicles in x and y")
+    plt.show()
+    plt.figure()
+    plt.plot(xcar1)
+    plt.plot(xcar2)
+    plt.title("x coordinate over time")
+    plt.show()
+    plt.figure()
+    plt.plot(ycar1)
+    plt.plot(ycar2)
+    plt.title("y coordinate over time")
+    plt.show()
+    plt.figure()
+    plt.plot(vxcar1)
+    plt.plot(vxcar2)
+    plt.title("x speed over time")
+    plt.show()
+    plt.figure()
+    plt.plot(vycar1)
+    plt.plot(vycar2)
+    plt.title("y speed over time")
+    plt.show()
+    plt.figure()
+    plt.plot(axcar1)
+    plt.plot(axcar2)
+    plt.title("x accel over time")
+    plt.show()
+    plt.figure()
+    plt.plot(aycar1)
+    plt.plot(aycar2)
+    plt.title("y accel over time")
+    plt.show()
+
 
 if __name__=="__main__":
     main()

@@ -59,7 +59,9 @@ class PIELM:
             with torch.no_grad():
                 
                 jac = jacobian(self.predict_jacobian,self.betas)
+                print(jac.shape)
                 loss = self.predict_loss(self.x_train,self.y_train_pred,self.x_train_pred)
+                print(loss.shape)
                 pinv_jac = torch.linalg.pinv(jac)
                 delta = torch.matmul(pinv_jac,loss)
                 self.betas -=delta*0.1
@@ -249,7 +251,7 @@ class XTFC(PIELM):
                             self.lambda_*l_pred_dhx,self.lambda_*l_pred_dhy,\
                             (1-self.lambda_)*l_x,(1-self.lambda_)*l_y,(1-self.lambda_)*l_theta))  
 
-
+        print(loss.shape)
         return loss
             
     def predict_loss(self,x,y,x_pred):
