@@ -70,15 +70,16 @@ def main():
     v2y_final = 0
     a2x_final = 0
     a2y_final = 0
-    
+   
 
     car1 = np.array([[x1_init,y1_init,theta1_init,v1x_init,v1y_init,a1x_init,a1y_init],\
           [x1_final,y1_final,theta1_final,v1x_final,v1y_final,a1x_final,a1y_final]])
     car2 = np.array([[x2_init,y2_init,theta2_init,v2x_init,v2y_init,a2x_init,a2y_init],\
           [x2_final,y2_final,theta2_final,v2x_final,v2y_final,a2x_final,a2y_final]])
-    time = np.arange(0,10,0.1)
     
-    n_nodes = 100
+    last = 8
+    time = np.arange(0,last,0.1)
+    n_nodes = int(last*10/2)
     n_iterations = 1e2
 
     states = 4
@@ -101,39 +102,41 @@ def main():
     axcar2= car2[:,8]
     aycar1= car1[:,9]
     aycar2= car2[:,9]
+    time_string = np.array([str(np.round(tim,1)) for tim in time ])
     plt.figure()
-    plt.plot(xcar1,ycar1)
-    plt.plot(xcar2,ycar2)
+    plt.scatter(xcar1,ycar1)
+    for i in range(len(xcar1)):
+        if i % 5 ==0:
+            plt.text(x=xcar1[i],y=ycar1[i],color="black",s=time_string[i])
+    plt.scatter(xcar2,ycar2)
+    for i in range(len(xcar2)):
+        if i % 5 ==0:
+            plt.text(x=xcar2[i],y=ycar2[i],color="red",s=time_string[i])
     plt.title("vehicles in x and y")
     plt.show()
     plt.figure()
-    plt.plot(xcar1)
-    plt.plot(xcar2)
-    plt.title("x coordinate over time")
+    plt.scatter(time,((xcar1-xcar2)**2+(ycar1-ycar2)**2)**(1/2))
+    plt.hlines(y=3,xmin=time[0],xmax=time[-1],colors="red")
+    plt.title("Distance between cars over time")
     plt.show()
     plt.figure()
-    plt.plot(ycar1)
-    plt.plot(ycar2)
-    plt.title("y coordinate over time")
-    plt.show()
-    plt.figure()
-    plt.plot(vxcar1)
-    plt.plot(vxcar2)
+    plt.scatter(time,vxcar1)
+    plt.scatter(time,vxcar2)
     plt.title("x speed over time")
     plt.show()
     plt.figure()
-    plt.plot(vycar1)
-    plt.plot(vycar2)
+    plt.scatter(time,vycar1)
+    plt.scatter(time,vycar2)
     plt.title("y speed over time")
     plt.show()
     plt.figure()
-    plt.plot(axcar1)
-    plt.plot(axcar2)
+    plt.scatter(time,axcar1)
+    plt.scatter(time,axcar2)
     plt.title("x accel over time")
     plt.show()
     plt.figure()
-    plt.plot(aycar1)
-    plt.plot(aycar2)
+    plt.scatter(time,aycar1)
+    plt.scatter(time,aycar2)
     plt.title("y accel over time")
     plt.show()
 

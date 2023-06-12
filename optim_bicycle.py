@@ -1,7 +1,7 @@
 from bicycle_PINN import *
 
 class XTFC_veh(PIELM):
-    def __init__(self,n_nodes,input_size,output_size,length,low_w=-1,high_w=1,low_b=-1,high_b=1,activation_function="tanh",d=2):
+    def __init__(self,n_nodes,input_size,output_size,length,low_w=-1,high_w=1,low_b=-1,high_b=1,activation_function="tanh",d=3):
         super().__init__(n_nodes,input_size,output_size,length,low_w=-1,high_w=1,low_b=-1,high_b=1,activation_function="tanh")
 
         self.length= length
@@ -273,14 +273,14 @@ class XTFC_veh(PIELM):
         dhdelta_2 = torch.matmul(dh,bdelta_2).reshape(self.x_train.shape)
 
         
-        lambda_x_1 = torch.matmul(h,blambda_x_1).reshape(self.x_train.shape)
-        lambda_y_1 = torch.matmul(h,blambda_y_1).reshape(self.x_train.shape)
+        # lambda_x_1 = torch.matmul(h,blambda_x_1).reshape(self.x_train.shape)
+        # lambda_y_1 = torch.matmul(h,blambda_y_1).reshape(self.x_train.shape)
         lambda_dx_1 = torch.matmul(h,blambda_dx_1).reshape(self.x_train.shape)
         lambda_dy_1= torch.matmul(h,blambda_dy_1).reshape(self.x_train.shape)
         lambda_dtheta_1 = torch.matmul(h,blambda_dtheta_1).reshape(self.x_train.shape)
         lambda_ddelta_1 = torch.matmul(h,blambda_ddelta_1).reshape(self.x_train.shape)
-        lambda_x_2 = torch.matmul(h,blambda_x_2).reshape(self.x_train.shape)
-        lambda_y_2 = torch.matmul(h,blambda_y_2).reshape(self.x_train.shape)
+        # lambda_x_2 = torch.matmul(h,blambda_x_2).reshape(self.x_train.shape)
+        # lambda_y_2 = torch.matmul(h,blambda_y_2).reshape(self.x_train.shape)
         lambda_dx_2 = torch.matmul(h,blambda_dx_2).reshape(self.x_train.shape)
         lambda_dy_2= torch.matmul(h,blambda_dy_2).reshape(self.x_train.shape)
         lambda_dtheta_2 = torch.matmul(h,blambda_dtheta_2).reshape(self.x_train.shape)
@@ -318,8 +318,8 @@ class XTFC_veh(PIELM):
         l_dtheta_1 = dhtheta_1 - (v_1*tan_delta_1*cos_slip_1/self.l)
         l_ddelta_1 = dhdelta_1+lambda_ddelta_1
         
-        l_lambda_dx_1 = lambda_x_1 -(4*((hx_1-hx_2)**2-self.d**2)*(hx_1-hx_2))
-        l_lambda_dy_1 = lambda_y_1 -(4*((hy_1-hy_2)**2-self.d**2)*(hy_1-hy_2))
+        # l_lambda_dx_1 = lambda_x_1 -(4*((hx_1-hx_2)**2-self.d**2)*(hx_1-hx_2))
+        # l_lambda_dy_1 = lambda_y_1 -(4*((hy_1-hy_2)**2-self.d**2)*(hy_1-hy_2))
         l_lambda_ddx_1 = lambda_dx_1 -(-lambda_dx_1*cos_theta_1*dhv_x_1-lambda_dy_1*sin_theta_1*dhv_x_1-lambda_dtheta_1*tan_delta_1/self.l*(dhv_x_1*cos_slip_1+dcos_slip_1_x*v_1))
         l_lambda_ddy_1 = lambda_dy_1 -(-lambda_dx_1*cos_theta_1*dhv_y_1-lambda_dy_1*sin_theta_1*dhv_y_1-lambda_dtheta_1*tan_delta_1/self.l*(dhv_y_1*cos_slip_1+dcos_slip_1_y*v_1))
         l_lambda_dtheta_1 = lambda_dtheta_1 - ( lambda_dx_1*v_1*sin_theta_1-lambda_dy_1*v_1*cos_theta_1)
@@ -331,27 +331,29 @@ class XTFC_veh(PIELM):
         l_ddy_2 = ddhy_2+lambda_dy_2
         l_dtheta_2 = dhtheta_2 - (v_2*tan_delta_2*cos_slip_2/self.l)
         l_ddelta_2 = dhdelta_2+lambda_ddelta_2
-        l_lambda_dx_2 =lambda_x_2 +(4*((hx_1-hx_2)**2-self.d**2)*(hx_1-hx_2))
-        l_lambda_dy_2 =lambda_y_2 +(4*((hy_1-hy_2)**2-self.d**2)*(hy_1-hy_2))
+        # l_lambda_dx_2 =lambda_x_2 +(4*((hx_1-hx_2)**2-self.d**2)*(hx_1-hx_2))
+        # l_lambda_dy_2 =lambda_y_2 +(4*((hy_1-hy_2)**2-self.d**2)*(hy_1-hy_2))
         l_lambda_ddx_2 = lambda_dx_2 -(-lambda_dx_2*cos_theta_2*dhv_x_2-lambda_dy_2*sin_theta_2*dhv_x_2-lambda_dtheta_2*tan_delta_2/self.l*(dhv_x_2*cos_slip_2+dcos_slip_2_x*v_2))
         
         l_lambda_ddy_2 =lambda_dy_2 -(-lambda_dx_2*cos_theta_2*dhv_y_2-lambda_dy_2*sin_theta_2*dhv_y_2-lambda_dtheta_2*tan_delta_2/self.l*(dhv_y_2*cos_slip_2+dcos_slip_2_y*v_2))
         l_lambda_dtheta_2 =lambda_dtheta_2 -(lambda_dx_2*v_2*sin_theta_2-lambda_dy_2*v_2*cos_theta_2)
         l_lambda_ddelta_2 =lambda_ddelta_2 -(-lambda_dtheta_2/self.l*cos_slip_2*v_2*(1/torch.cos(hdelta_2))**2)
    
-        l_lambda_dx_1_threshold = lambda_dx_1**4
-        l_lambda_dx_2_threshold = lambda_dx_2**4
-        l_lambda_dy_1_threshold = lambda_dy_1**4
-        l_lambda_dy_2_threshold = lambda_dy_2**4
+        # l_lambda_dx_1_threshold = lambda_dx_1**4
+        # l_lambda_dx_2_threshold = lambda_dx_2**4
+        # l_lambda_dy_1_threshold = lambda_dy_1**4
+        # l_lambda_dy_2_threshold = lambda_dy_2**4
        
-        ddx_1_threshold = ddhx_1**4
-        dx_1_threshold = dhx_1**2
-        ddx_2_threshold = ddhx_2**4
-        dx_2_threshold = dhx_2**2
-        ddy_1_threshold = ddhy_1**4
-        dy_1_threshold = dhy_1**2
-        ddy_2_threshold = ddhy_2**4
-        dy_2_threshold = dhy_2**2
+        # ddx_1_threshold = ddhx_1**4
+        # dx_1_threshold = dhx_1**2
+        # ddx_2_threshold = ddhx_2**4
+        # dx_2_threshold = dhx_2**2
+        # ddy_1_threshold = ddhy_1**4
+        # dy_1_threshold = dhy_1**2
+        # ddy_2_threshold = ddhy_2**4
+        # dy_2_threshold = dhy_2**2
+        # l_y_1 = hy_1 - (init_y_1+final_y_1)/2 
+        # l_x_2 = hx_2 - (init_x_2+final_y_2)/2
 
         loss= torch.vstack((  l_dx_1,
                               l_dy_1,
@@ -359,8 +361,8 @@ class XTFC_veh(PIELM):
                               l_ddy_1,
                               l_dtheta_1,
                               l_ddelta_1,
-                              l_lambda_dx_1,
-                              l_lambda_dy_1,
+                            #   l_lambda_dx_1,
+                            #   l_lambda_dy_1,
                               l_lambda_ddx_1,
                               l_lambda_ddy_1,
                               l_lambda_dtheta_1,
@@ -370,25 +372,29 @@ class XTFC_veh(PIELM):
                               l_ddx_2,
                               l_ddy_2,
                               l_dtheta_2,
-                              l_ddelta_2,
-                              l_lambda_dx_2,
-                              l_lambda_dy_2,
+                              l_ddelta_2,\
+                            #   l_y_1,
+                            #   l_x_2,
+                            #   l_lambda_dx_2,
+                            #   l_lambda_dy_2,
                               l_lambda_ddx_2,
                               l_lambda_ddy_2,
                               l_lambda_dtheta_2,
-                              l_lambda_ddelta_2,
-                              l_lambda_dx_1_threshold,
-                              l_lambda_dx_2_threshold,
-                              l_lambda_dy_1_threshold,
-                              l_lambda_dy_2_threshold,
-                              ddx_1_threshold,
-                              ddx_2_threshold,
-                              ddy_1_threshold,
-                              ddy_2_threshold,
-                              dx_1_threshold,
-                              dx_2_threshold,
-                              dy_1_threshold,
-                              dy_2_threshold))  
+                              l_lambda_ddelta_2\
+                            #     ,
+                            #   l_lambda_dx_1_threshold,
+                            #   l_lambda_dx_2_threshold,
+                            #   l_lambda_dy_1_threshold,
+                            #   l_lambda_dy_2_threshold,
+                            #   ddx_1_threshold,
+                            #   ddx_2_threshold,
+                            #   ddy_1_threshold,
+                            #   ddy_2_threshold,
+                            #   dx_1_threshold,
+                            #   dx_2_threshold,
+                            #   dy_1_threshold,
+                            #   dy_2_threshold
+                              ))  
         
         
         return loss
@@ -634,14 +640,14 @@ class XTFC_veh(PIELM):
         dhdelta_2 = torch.matmul(dh,bdelta_2).reshape(self.x_train.shape)
 
         
-        lambda_x_1 = torch.matmul(h,blambda_x_1).reshape(self.x_train.shape)
-        lambda_y_1 = torch.matmul(h,blambda_y_1).reshape(self.x_train.shape)
+        # lambda_x_1 = torch.matmul(h,blambda_x_1).reshape(self.x_train.shape)
+        # lambda_y_1 = torch.matmul(h,blambda_y_1).reshape(self.x_train.shape)
         lambda_dx_1 = torch.matmul(h,blambda_dx_1).reshape(self.x_train.shape)
         lambda_dy_1= torch.matmul(h,blambda_dy_1).reshape(self.x_train.shape)
         lambda_dtheta_1 = torch.matmul(h,blambda_dtheta_1).reshape(self.x_train.shape)
         lambda_ddelta_1 = torch.matmul(h,blambda_ddelta_1).reshape(self.x_train.shape)
-        lambda_x_2 = torch.matmul(h,blambda_x_2).reshape(self.x_train.shape)
-        lambda_y_2 = torch.matmul(h,blambda_y_2).reshape(self.x_train.shape)
+        # lambda_x_2 = torch.matmul(h,blambda_x_2).reshape(self.x_train.shape)
+        # lambda_y_2 = torch.matmul(h,blambda_y_2).reshape(self.x_train.shape)
         lambda_dx_2 = torch.matmul(h,blambda_dx_2).reshape(self.x_train.shape)
         lambda_dy_2= torch.matmul(h,blambda_dy_2).reshape(self.x_train.shape)
         lambda_dtheta_2 = torch.matmul(h,blambda_dtheta_2).reshape(self.x_train.shape)
@@ -676,8 +682,8 @@ class XTFC_veh(PIELM):
         l_dtheta_1 = dhtheta_1 - (v_1*tan_delta_1*cos_slip_1/self.l)
         l_ddelta_1 = dhdelta_1+lambda_ddelta_1
         
-        l_lambda_dx_1 = lambda_x_1 -(4*((hx_1-hx_2)**2-self.d**2)*(hx_1-hx_2))
-        l_lambda_dy_1 = lambda_y_1 -(4*((hy_1-hy_2)**2-self.d**2)*(hy_1-hy_2))
+        # l_lambda_dx_1 = lambda_x_1 -(4*((hx_1-hx_2)**2-self.d**2)*(hx_1-hx_2))
+        # l_lambda_dy_1 = lambda_y_1 -(4*((hy_1-hy_2)**2-self.d**2)*(hy_1-hy_2))
         l_lambda_ddx_1 = lambda_dx_1 -(-lambda_dx_1*cos_theta_1*dhv_x_1-lambda_dy_1*sin_theta_1*dhv_x_1-lambda_dtheta_1*tan_delta_1/self.l*(dhv_x_1*cos_slip_1+dcos_slip_1_x*v_1))
         l_lambda_ddy_1 = lambda_dy_1 -(-lambda_dx_1*cos_theta_1*dhv_y_1-lambda_dy_1*sin_theta_1*dhv_y_1-lambda_dtheta_1*tan_delta_1/self.l*(dhv_y_1*cos_slip_1+dcos_slip_1_y*v_1))
         l_lambda_dtheta_1 = lambda_dtheta_1 - ( lambda_dx_1*v_1*sin_theta_1-lambda_dy_1*v_1*cos_theta_1)
@@ -689,25 +695,25 @@ class XTFC_veh(PIELM):
         l_ddy_2 = ddhy_2+lambda_dy_2
         l_dtheta_2 = dhtheta_2 - (v_2*tan_delta_2*cos_slip_2/self.l)
         l_ddelta_2 = dhdelta_2+lambda_ddelta_2
-        l_lambda_dx_2 =lambda_x_2 +(4*((hx_1-hx_2)**2-self.d**2)*(hx_1-hx_2))
-        l_lambda_dy_2 =lambda_y_2 +(4*((hy_1-hy_2)**2-self.d**2)*(hy_1-hy_2))
+        # l_lambda_dx_2 =lambda_x_2 +(4*((hx_1-hx_2)**2-self.d**2)*(hx_1-hx_2))
+        # l_lambda_dy_2 =lambda_y_2 +(4*((hy_1-hy_2)**2-self.d**2)*(hy_1-hy_2))
         l_lambda_ddx_2 =lambda_dx_2 -(-lambda_dx_2*cos_theta_2*dhv_x_2-lambda_dy_2*sin_theta_2*dhv_x_2-lambda_dtheta_2*tan_delta_2/self.l*(dhv_x_2*cos_slip_2+dcos_slip_2_x*v_2))
         l_lambda_ddy_2 =lambda_dy_2 -(-lambda_dx_2*cos_theta_2*dhv_y_2-lambda_dy_2*sin_theta_2*dhv_y_2-lambda_dtheta_2*tan_delta_2/self.l*(dhv_y_2*cos_slip_2+dcos_slip_2_y*v_2))
         l_lambda_dtheta_2 =lambda_dtheta_2 -(lambda_dx_2*v_2*sin_theta_2-lambda_dy_2*v_2*cos_theta_2)
         l_lambda_ddelta_2 =lambda_ddelta_2 -(-lambda_dtheta_2/self.l*cos_slip_2*v_2*(1/torch.cos(hdelta_2))**2)
         
-        l_lambda_dx_1_threshold = lambda_dx_1**4
-        l_lambda_dx_2_threshold = lambda_dx_2**4
-        l_lambda_dy_1_threshold = lambda_dy_1**4
-        l_lambda_dy_2_threshold = lambda_dy_2**4
-        ddx_1_threshold = ddhx_1**4
-        dx_1_threshold = dhx_1**2
-        ddx_2_threshold = ddhx_2**4
-        dx_2_threshold = dhx_2**2
-        ddy_1_threshold = ddhy_1**4
-        dy_1_threshold = dhy_1**2
-        ddy_2_threshold = ddhy_2**4
-        dy_2_threshold = dhy_2**2
+        # l_lambda_dx_1_threshold = lambda_dx_1**4
+        # l_lambda_dx_2_threshold = lambda_dx_2**4
+        # l_lambda_dy_1_threshold = lambda_dy_1**4
+        # l_lambda_dy_2_threshold = lambda_dy_2**4
+        # ddx_1_threshold = ddhx_1**4
+        # dx_1_threshold = dhx_1**2
+        # ddx_2_threshold = ddhx_2**4
+        # dx_2_threshold = dhx_2**2
+        # ddy_1_threshold = ddhy_1**4
+        # dy_1_threshold = dhy_1**2
+        # ddy_2_threshold = ddhy_2**4
+        # dy_2_threshold = dhy_2**2
       
         # print(l_dx_1.mean(),l_dx_1.max(),l_dx_2.mean(),l_dx_2.max())
         # print(l_dy_1.mean(),l_dy_1.max(),l_dy_2.mean(),l_dy_2.max())
@@ -724,6 +730,18 @@ class XTFC_veh(PIELM):
         # print(l_lambda_ddelta_1.mean(),l_lambda_ddelta_1.max(),l_lambda_ddelta_2.mean(),l_lambda_ddelta_2.max())
         # print("\n")
         
+        print((l_dx_1**2).mean(),(l_dx_2**2).mean())
+        print((l_dy_1**2).mean(),(l_dy_2**2).mean())
+        print((l_ddx_1**2).mean(),(l_ddx_2**2).mean())
+        print((l_ddy_1**2).mean(),(l_ddy_2**2).mean())
+        print((l_dtheta_1**2).mean(),(l_dtheta_2**2).mean())
+        print((l_ddelta_1**2).mean(),(l_ddelta_2**2).mean())
+        print((l_lambda_ddx_1**2).mean(),(l_lambda_ddx_2**2).mean())
+        print((l_lambda_ddy_1**2).mean(),(l_lambda_ddy_2**2).mean())
+        print((l_lambda_dtheta_1**2).mean(),(l_lambda_dtheta_2**2).mean())
+        print((l_lambda_ddelta_1**2).mean(),(l_lambda_ddelta_2**2).mean())
+        # l_y_1 = hy_1 - (init_y_1+final_y_1)/2 
+        # l_x_2 = hx_2 - (init_x_2+final_y_2)/2
         
         loss= torch.vstack((  l_dx_1,
                               l_dy_1,
@@ -731,8 +749,8 @@ class XTFC_veh(PIELM):
                               l_ddy_1,
                               l_dtheta_1,
                               l_ddelta_1,
-                              l_lambda_dx_1,
-                              l_lambda_dy_1,
+                            #   l_lambda_dx_1,
+                            #   l_lambda_dy_1,
                               l_lambda_ddx_1,
                               l_lambda_ddy_1,
                               l_lambda_dtheta_1,
@@ -743,24 +761,28 @@ class XTFC_veh(PIELM):
                               l_ddy_2,
                               l_dtheta_2,
                               l_ddelta_2,
-                              l_lambda_dx_2,
-                              l_lambda_dy_2,
+                            #   l_lambda_dx_2,
+                            #   l_lambda_dy_2,
                               l_lambda_ddx_2,
                               l_lambda_ddy_2,
                               l_lambda_dtheta_2,
-                              l_lambda_ddelta_2,
-                              l_lambda_dx_1_threshold,
-                              l_lambda_dx_2_threshold,
-                              l_lambda_dy_1_threshold,
-                              l_lambda_dy_2_threshold,
-                              ddx_1_threshold,
-                              ddx_2_threshold,
-                              ddy_1_threshold,
-                              ddy_2_threshold,
-                              dx_1_threshold,
-                              dx_2_threshold,
-                              dy_1_threshold,
-                              dy_2_threshold))  
+                              l_lambda_ddelta_2,\
+                            #   l_y_1,
+                            #   l_x_2
+                            #   ,
+                            #   l_lambda_dx_1_threshold,
+                            #   l_lambda_dx_2_threshold,
+                            #   l_lambda_dy_1_threshold,
+                            #   l_lambda_dy_2_threshold,
+                            #   ddx_1_threshold,
+                            #   ddx_2_threshold,
+                            #   ddy_1_threshold,
+                            #   ddy_2_threshold,
+                            #   dx_1_threshold,
+                            #   dx_2_threshold,
+                            #   dy_1_threshold,
+                            #   dy_2_threshold
+                              ))  
 
         return loss
 
