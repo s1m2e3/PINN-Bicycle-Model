@@ -54,7 +54,7 @@ def main():
     theta2_final = 3*np.pi/4
     
     v1x_init = -10
-    v1y_init = 0.1
+    v1y_init = 2
     a1x_init = -2
     a1y_init = 0
     v1x_final = 0
@@ -62,7 +62,7 @@ def main():
     a1x_final = 0
     a1y_final = 0
     
-    v2x_init = 0.1
+    v2x_init = 2
     v2y_init = -10
     a2x_init = 0
     a2y_init = -2
@@ -81,6 +81,7 @@ def main():
     time = np.arange(0,last,0.1)
     n_nodes = int(last*10/2)
     n_iterations = 1e2
+    # for k in range(1):
 
     states = 4
     co_states = 6
@@ -113,32 +114,41 @@ def main():
         if i % 5 ==0:
             plt.text(x=xcar2[i],y=ycar2[i],color="red",s=time_string[i])
     plt.title("vehicles in x and y")
-    plt.show()
-    plt.figure()
-    plt.scatter(time,((xcar1-xcar2)**2+(ycar1-ycar2)**2)**(1/2))
-    plt.hlines(y=3,xmin=time[0],xmax=time[-1],colors="red")
-    plt.title("Distance between cars over time")
-    plt.show()
-    plt.figure()
+    plt.savefig("xycoordinates.png")
+    plt.figure(figsize=(10,5))
+
+    plt.scatter(time,(abs(xcar1-x2_init)+abs(ycar2-y1_init)))
+    plt.hlines(y=7.5,xmin=time[0],xmax=time[-1],colors="red")
+    plt.title("Manhattan Distance between cars and conflict point")
+    plt.savefig("distance.png")
+    
+
+    # plt.figure()
+    # plt.scatter(time,(abs(xcar1-xcar2)))
+    # plt.hlines(y=3,xmin=time[0],xmax=time[-1],colors="red")
+    # plt.title("Distance in x between cars over time")
+    # plt.savefig("xycoordinates.png")
+
+    plt.figure(figsize=(10,5))
     plt.scatter(time,vxcar1)
     plt.scatter(time,vxcar2)
     plt.title("x speed over time")
-    plt.show()
-    plt.figure()
+    plt.savefig("xspeed.png")
+    plt.figure(figsize=(10,5))
     plt.scatter(time,vycar1)
     plt.scatter(time,vycar2)
     plt.title("y speed over time")
-    plt.show()
-    plt.figure()
+    plt.savefig("yspeed.png")
+    plt.figure(figsize=(10,5))
     plt.scatter(time,axcar1)
     plt.scatter(time,axcar2)
     plt.title("x accel over time")
-    plt.show()
-    plt.figure()
+    plt.savefig("xaccel.png")
+    plt.figure(figsize=(10,5))
     plt.scatter(time,aycar1)
     plt.scatter(time,aycar2)
     plt.title("y accel over time")
-    plt.show()
+    plt.savefig("yaccel.png")
 
 
 if __name__=="__main__":

@@ -1,7 +1,8 @@
 from bicycle_PINN import *
+import matplotlib.pyplot as plt
 
 class XTFC_veh(PIELM):
-    def __init__(self,n_nodes,input_size,output_size,length,low_w=-1,high_w=1,low_b=-1,high_b=1,activation_function="tanh",d=3):
+    def __init__(self,n_nodes,input_size,output_size,length,low_w=-1,high_w=1,low_b=-1,high_b=1,activation_function="tanh",d=2.5,k=2):
         super().__init__(n_nodes,input_size,output_size,length,low_w=-1,high_w=1,low_b=-1,high_b=1,activation_function="tanh")
 
         self.length= length
@@ -33,6 +34,7 @@ class XTFC_veh(PIELM):
         #betas n_nodes*18:n_nodes*19 = pred_lambda_theta_2
         #betas n_nodes*19:n_nodes*20 = pred_lambda_delta_2
         self.d = d
+        self.k = k
 
     def predict_jacobian(self,betas):
         
@@ -198,8 +200,8 @@ class XTFC_veh(PIELM):
         dd_phi4_ay1_init = dd_phi4*init_ay_1
         dd_phi4_ay2_init = dd_phi4*init_ay_2
         
-       
-        
+
+
         hx_1 = torch.matmul(h.add(phi1_h1).add(phi2_hf).add(phi3_dh1).add(phi4_ddh1),bx_1).reshape(self.x_train.shape)\
             .add(phi1_x1_init).add(phi2_x1_final).add(phi3_vx1_init/self.c).add(phi4_ax1_init/self.c**2)
         dhx_1 = self.c*torch.matmul(dh.add(d_phi1_h1).add(d_phi2_hf).add(d_phi3_dh1).add(d_phi4_ddh1),bx_1).reshape(self.x_train.shape)\
@@ -233,6 +235,165 @@ class XTFC_veh(PIELM):
         
         ddhy_2 = self.c**2*torch.matmul(dhh.add(dd_phi1_h1).add(dd_phi2_hf).add(dd_phi3_dh1).add(dd_phi4_ddh1),by_2).reshape(self.x_train.shape)\
             .add(dd_phi1_y2_init).add(dd_phi2_y2_final).add(dd_phi3_vy2_init/self.c).add(dd_phi4_ay2_init/self.c**2)
+
+        
+        """ x1-x2 <= dx
+            x1-x2 >= -dx
+            
+            which for x1 converts to:
+                pred_x1 = x1_c + (dx+x2_c-x1_c)*tanh(1/2+1/2tanh(k*(x1_c-dx-x2_c))) +(-dx+x2_c-x1_c)*tanh(1/2+1/2tanh(k*(-dx+x2_c-x1_c)))
+            and similarly for y1
+                pred_y1 = y1_c + (dy+y2_c-y1_c)*tanh(1/2+1/2tanh(k*(y1_c-dy-y2_c))) +(-dy+y2_c-y1_c)*tanh(1/2+1/2tanh(k*(-dy+y2_c-y1_c)))
+            
+        """
+      # Add inequality constraints for x on car 1:
+        y_x_1 = hx_1
+        y_y_2 = hy_2
+        f_u = -self.d*5+y_y_2-init_y_2+init_x_1
+        # f_l =  -self.d+y_x_2
+        heaviside_u = 1/2+1/2*torch.tanh(self.k*(y_x_1-f_u))
+        # heaviside_l = 1/2+1/2*torch.tanh(self.k*(f_l-y_x_1))
+        # 
+        # f_r_u_1 = init_y_1+self.d
+        # f_r_l_1 = init_y_1-self.d
+        # heaviside_r_u = 1/2+1/2*torch.tanh(self.k*(y_x_1-f_r_u_1))
+        # heaviside_r_l = 1/2+1/2*torch.tanh(self.k*(f_r_l_1-y_x_1))
+
+        hx_1 = y_x_1 + (f_u-hx_1)*(heaviside_u)
+            #   + (f_r_u_1-hx_1)*(heaviside_r_u)+(f_r_l_1-hx_1)*(heaviside_r_l)
+        y_dx_1 = dhx_1 
+        y_dy_2 = dhy_2 
+        # d_heaviside_u = 1/2*(1-torch.tanh(self.k*(y_x_1-f_u))**2*self.k*(y_dx_1-y_dy_2)) 
+        # d_heaviside_l = 1/2*(1-torch.tanh(self.k*(f_l-y_x_1))**2*self.k*(y_dx_2-y_dx_1))
+        # d_heaviside_r_u = 1/2*(1-torch.tanh(self.k*(y_x_1-f_r_u_1))**2*self.k*(y_dx_1)) 
+        # d_heaviside_r_l = 1/2*(1-torch.tanh(self.k*(f_r_l_1-y_x_1))**2*self.k*(-y_dx_1))
+        # 
+        dhx_1 = y_dx_1 +(y_dy_2-y_dx_1)*(heaviside_u)
+        #                +(-y_dx_1)*(heaviside_r_u)+(f_r_u_1-hx_1)*(d_heaviside_r_u)+(-y_dx_1)*(heaviside_r_l)+(f_r_l_1-hx_1)*(d_heaviside_r_l)
+        # 
+        y_ddx_1 = ddhx_1
+        y_ddy_2 = ddhy_2
+        # dd_heaviside_u = -self.k*torch.tanh(self.k*(y_x_1-f_u))*(1-torch.tanh(self.k*(y_x_1-f_u))**2)*self.k*(y_dx_1-y_dy_2)**2-self.k/2*torch.tanh(self.k*(y_x_1-f_u))**2*self.k*(y_ddx_1-y_ddy_2)
+        # dd_heaviside_l = -self.k*torch.tanh(self.k*(f_l-y_x_1))*(1-torch.tanh(self.k*(f_l-y_x_1))**2)*self.k*(y_dx_2-y_dx_1)**2-self.k/2*torch.tanh(self.k*(f_l-y_x_1))**2*self.k*(y_ddx_2-y_ddx_1)
+        # dd_heaviside_r_u = -self.k*torch.tanh(self.k*(y_x_1-f_r_u_1))*(1-torch.tanh(self.k*(y_x_1-f_r_u_1))**2)*self.k*(y_dx_1)**2-self.k/2*torch.tanh(self.k*(y_x_1-f_r_u_1))**2*self.k*(y_ddx_1)
+        # dd_heaviside_r_l = -self.k*torch.tanh(self.k*(f_r_l_1-y_x_1))*(1-torch.tanh(self.k*(f_r_l_1-y_x_1))**2)*self.k*(-y_dx_1)**2-self.k/2*torch.tanh(self.k*(f_r_l_1-y_x_1))**2*self.k*(-y_ddx_1)
+# 
+        ddhx_1 = y_ddx_1 + (y_ddy_2-y_ddx_1)*(heaviside_u)
+                        #  + (-y_ddx_1)*(heaviside_r_u)+(-y_dx_1)*(d_heaviside_r_u)+(-y_dx_1)*(d_heaviside_r_u)+(f_r_u_1-hx_1)*(dd_heaviside_r_u)-(y_ddx_1)*(heaviside_r_l)+(-y_dx_1)*(d_heaviside_r_l)+(-y_dx_1)*(d_heaviside_r_l)+(f_r_l_1-hx_1)*(dd_heaviside_r_l)
+        
+        
+        # Add inequality constraints for y on car 1:
+        y_y_1 = hy_1
+        # y_y_2 = hy_2
+        # f_u = -self.d*5+y_y_2-init_y_2+init_x_1
+        # f_l =  -self.d+y_x_2
+        # heaviside_u = 1/2+1/2*torch.tanh(self.k*(y_x_1-f_u))
+        # heaviside_l = 1/2+1/2*torch.tanh(self.k*(f_l-y_x_1))
+        # 
+        f_r_u_1 = init_y_1+self.d
+        f_r_l_1 = init_y_1-self.d
+        heaviside_r_u = 1/2+1/2*torch.tanh(self.k*(y_y_1-f_r_u_1))
+        heaviside_r_l = 1/2+1/2*torch.tanh(self.k*(f_r_l_1-y_y_1))
+# 
+        hy_1 = y_y_1 +(f_r_u_1-hy_1)*(heaviside_r_u)+(f_r_l_1-hy_1)*(heaviside_r_l)
+        # \ (f_u-hx_1)*(heaviside_u)
+               
+        y_dy_1 = dhy_1 
+        # y_dy_2 = dhy_2 
+        # d_heaviside_u = 1/2*(1-torch.tanh(self.k*(y_x_1-f_u))**2*self.k*(y_dx_1-y_dy_2)) 
+        # d_heaviside_l = 1/2*(1-torch.tanh(self.k*(f_l-y_x_1))**2*self.k*(y_dx_2-y_dx_1))
+        # d_heaviside_r_u = 1/2*(1-torch.tanh(self.k*(y_y_1-f_r_u_1))**2*self.k*(y_dy_1)) 
+        # d_heaviside_r_l = 1/2*(1-torch.tanh(self.k*(f_r_l_1-y_y_1))**2*self.k*(-y_dy_1))
+        # 
+        dhy_1 = y_dy_1 +(-y_dy_1)*(heaviside_r_u)+(-y_dy_1)*(heaviside_r_l)
+        # (y_dy_2-y_dx_1)*(heaviside_u)+(f_u-y_x_1)*(d_heaviside_u)
+                       
+        # 
+        y_ddy_1 = ddhy_1
+        # y_ddy_2 = ddhy_2
+        # dd_heaviside_u = -self.k*torch.tanh(self.k*(y_x_1-f_u))*(1-torch.tanh(self.k*(y_x_1-f_u))**2)*self.k*(y_dx_1-y_dy_2)**2-self.k/2*torch.tanh(self.k*(y_x_1-f_u))**2*self.k*(y_ddx_1-y_ddy_2)
+        # dd_heaviside_l = -self.k*torch.tanh(self.k*(f_l-y_x_1))*(1-torch.tanh(self.k*(f_l-y_x_1))**2)*self.k*(y_dx_2-y_dx_1)**2-self.k/2*torch.tanh(self.k*(f_l-y_x_1))**2*self.k*(y_ddx_2-y_ddx_1)
+        # dd_heaviside_r_u = -self.k*torch.tanh(self.k*(y_y_1-f_r_u_1))*(1-torch.tanh(self.k*(y_y_1-f_r_u_1))**2)*self.k*(y_dy_1)**2-self.k/2*torch.tanh(self.k*(y_y_1-f_r_u_1))**2*self.k*(y_ddy_1)
+        # dd_heaviside_r_l = -self.k*torch.tanh(self.k*(f_r_l_1-y_y_1))*(1-torch.tanh(self.k*(f_r_l_1-y_y_1))**2)*self.k*(-y_dy_1)**2-self.k/2*torch.tanh(self.k*(f_r_l_1-y_y_1))**2*self.k*(-y_ddy_1)
+# 
+        ddhy_1 = y_ddy_1 +(-y_ddy_1)*(heaviside_r_u)-(y_ddy_1)*(heaviside_r_l)
+        # (y_ddy_2-y_ddx_1)*(heaviside_u)+(y_dy_2-y_dx_1)*(d_heaviside_u)+(y_dy_2-y_dx_1)*(d_heaviside_u)+(f_u-y_x_1)*(dd_heaviside_u)
+        
+        
+
+        #Add inequality constraints for y on car 2:
+        y_x_1 = hx_1
+        y_y_2 = hy_2
+        # f_u = -self.d*5+y_y_2-init_y_2+init_x_1
+        f_l = self.d*5+y_x_1+init_y_2-init_x_1
+        # heaviside_u = 1/2+1/2*torch.tanh(self.k*(y_x_1-f_u))
+        heaviside_l = 1/2+1/2*torch.tanh(self.k*(f_l-y_y_2))
+        # 
+        # f_r_u_1 = init_y_1+self.d
+        # f_r_l_1 = init_y_1-self.d
+        # heaviside_r_u = 1/2+1/2*torch.tanh(self.k*(y_x_1-f_r_u_1))
+        # heaviside_r_l = 1/2+1/2*torch.tanh(self.k*(f_r_l_1-y_x_1))
+# 
+        hy_2 = y_y_2 + (f_l-hy_2)*(heaviside_l)
+            #   + (f_r_u_1-hx_1)*(heaviside_r_u)+(f_r_l_1-hx_1)*(heaviside_r_l)
+        y_dx_1 = dhx_1 
+        y_dy_2 = dhy_2 
+        # d_heaviside_u = 1/2*(1-torch.tanh(self.k*(y_x_1-f_u))**2*self.k*(y_dx_1-y_dy_2)) 
+        # d_heaviside_l = 1/2*(1-torch.tanh(self.k*(f_l-y_y_2))**2*self.k*(y_dx_1-y_dy_2)) 
+        # d_heaviside_l = 1/2*(1-torch.tanh(self.k*(f_l-y_x_1))**2*self.k*(y_dx_2-y_dx_1))
+        # d_heaviside_r_u = 1/2*(1-torch.tanh(self.k*(y_x_1-f_r_u_1))**2*self.k*(y_dx_1)) 
+        # d_heaviside_r_l = 1/2*(1-torch.tanh(self.k*(f_r_l_1-y_x_1))**2*self.k*(-y_dx_1))
+        # 
+        dhy_2 = y_dy_2 +(y_dx_1-y_dy_2)*(heaviside_l)
+        #                +(-y_dx_1)*(heaviside_r_u)+(f_r_u_1-hx_1)*(d_heaviside_r_u)+(-y_dx_1)*(heaviside_r_l)+(f_r_l_1-hx_1)*(d_heaviside_r_l)
+        # 
+        y_ddx_1 = ddhx_1
+        y_ddy_2 = ddhy_2
+        # dd_heaviside_l = -self.k*torch.tanh(self.k*(f_l-y_y_2))*(1-torch.tanh(self.k*(f_l-y_y_2))**2)*self.k*(y_dx_1-y_dy_2)**2-self.k/2*torch.tanh(self.k*(f_l-y_y_2))**2*self.k*(y_ddx_1-y_ddy_2)
+        # dd_heaviside_l = -self.k*torch.tanh(self.k*(f_l-y_x_1))*(1-torch.tanh(self.k*(f_l-y_x_1))**2)*self.k*(y_dx_2-y_dx_1)**2-self.k/2*torch.tanh(self.k*(f_l-y_x_1))**2*self.k*(y_ddx_2-y_ddx_1)
+        # dd_heaviside_r_u = -self.k*torch.tanh(self.k*(y_x_1-f_r_u_1))*(1-torch.tanh(self.k*(y_x_1-f_r_u_1))**2)*self.k*(y_dx_1)**2-self.k/2*torch.tanh(self.k*(y_x_1-f_r_u_1))**2*self.k*(y_ddx_1)
+        # dd_heaviside_r_l = -self.k*torch.tanh(self.k*(f_r_l_1-y_x_1))*(1-torch.tanh(self.k*(f_r_l_1-y_x_1))**2)*self.k*(-y_dx_1)**2-self.k/2*torch.tanh(self.k*(f_r_l_1-y_x_1))**2*self.k*(-y_ddx_1)
+# 
+        ddhy_2 = y_ddy_2 + (y_ddx_1-y_ddy_2)*(heaviside_l)
+                        #  + (-y_ddx_1)*(heaviside_r_u)+(-y_dx_1)*(d_heaviside_r_u)+(-y_dx_1)*(d_heaviside_r_u)+(f_r_u_1-hx_1)*(dd_heaviside_r_u)-(y_ddx_1)*(heaviside_r_l)+(-y_dx_1)*(d_heaviside_r_l)+(-y_dx_1)*(d_heaviside_r_l)+(f_r_l_1-hx_1)*(dd_heaviside_r_l)
+        
+        #Add inequality constraints for x on car 2:
+        # y_y_1 = hy_1
+        y_x_2 = hx_2
+        # f_u = -self.d*5+y_y_2-init_y_2+init_x_1
+        # f_l =  -self.d+y_x_2
+        # heaviside_u = 1/2+1/2*torch.tanh(self.k*(y_x_1-f_u))
+        # heaviside_l = 1/2+1/2*torch.tanh(self.k*(f_l-y_x_1))
+        # 
+        f_r_u_2 = init_x_2+self.d
+        f_r_l_2 = init_x_2-self.d
+        heaviside_r_u = 1/2+1/2*torch.tanh(self.k*(y_x_2-f_r_u_2))
+        heaviside_r_l = 1/2+1/2*torch.tanh(self.k*(f_r_l_2-y_x_2))
+# 
+        hx_2 = y_x_2 +(f_r_u_2-hx_2)*(heaviside_r_u)+(f_r_l_2-hx_2)*(heaviside_r_l)
+        # \ (f_u-hx_1)*(heaviside_u)
+               
+        # y_dy_1 = dhy_1 
+        y_dx_2 = dhx_2 
+        # d_heaviside_u = 1/2*(1-torch.tanh(self.k*(y_x_1-f_u))**2*self.k*(y_dx_1-y_dy_2)) 
+        # d_heaviside_l = 1/2*(1-torch.tanh(self.k*(f_l-y_x_1))**2*self.k*(y_dx_2-y_dx_1))
+        # d_heaviside_r_u = 1/2*(1-torch.tanh(self.k*(y_x_2-f_r_u_2))**2*self.k*(y_dx_2)) 
+        # d_heaviside_r_l = 1/2*(1-torch.tanh(self.k*(f_r_l_2-y_x_2))**2*self.k*(-y_dx_2))
+        # 
+        dhx_2 = y_dx_2 +(-y_dx_2)*(heaviside_r_u)+(-y_dx_2)*(heaviside_r_l)
+        # (y_dy_2-y_dx_1)*(heaviside_u)+(f_u-y_x_1)*(d_heaviside_u)
+                       
+        # 
+        # y_ddy_1 = ddhy_1
+        y_ddx_2 = ddhx_2
+        # dd_heaviside_u = -self.k*torch.tanh(self.k*(y_x_1-f_u))*(1-torch.tanh(self.k*(y_x_1-f_u))**2)*self.k*(y_dx_1-y_dy_2)**2-self.k/2*torch.tanh(self.k*(y_x_1-f_u))**2*self.k*(y_ddx_1-y_ddy_2)
+        # dd_heaviside_l = -self.k*torch.tanh(self.k*(f_l-y_x_1))*(1-torch.tanh(self.k*(f_l-y_x_1))**2)*self.k*(y_dx_2-y_dx_1)**2-self.k/2*torch.tanh(self.k*(f_l-y_x_1))**2*self.k*(y_ddx_2-y_ddx_1)
+        # dd_heaviside_r_u = -self.k*torch.tanh(self.k*(y_x_2-f_r_u_2))*(1-torch.tanh(self.k*(y_x_2-f_r_u_2))**2)*self.k*(y_dx_2)**2-self.k/2*torch.tanh(self.k*(y_x_2-f_r_u_2))**2*self.k*(y_ddx_2)
+        # dd_heaviside_r_l = -self.k*torch.tanh(self.k*(f_r_l_2-y_x_2))*(1-torch.tanh(self.k*(f_r_l_2-y_x_2))**2)*self.k*(-y_dx_2)**2-self.k/2*torch.tanh(self.k*(f_r_l_2-y_x_2))**2*self.k*(-y_ddx_2)
+# 
+        ddhx_2 = y_ddx_2 +(-y_ddx_2)*(heaviside_r_u)-(y_ddx_2)*(heaviside_r_l)
+        # (y_ddy_2-y_ddx_1)*(heaviside_u)+(y_dy_2-y_dx_1)*(d_heaviside_u)+(y_dy_2-y_dx_1)*(d_heaviside_u)+(f_u-y_x_1)*(dd_heaviside_u)
+        
 
 
         support_function_matrix = np.array([[1,init_time],[1,final_time]])
@@ -273,14 +434,14 @@ class XTFC_veh(PIELM):
         dhdelta_2 = torch.matmul(dh,bdelta_2).reshape(self.x_train.shape)
 
         
-        # lambda_x_1 = torch.matmul(h,blambda_x_1).reshape(self.x_train.shape)
-        # lambda_y_1 = torch.matmul(h,blambda_y_1).reshape(self.x_train.shape)
+        lambda_x_1 = torch.matmul(h,blambda_x_1).reshape(self.x_train.shape)
+        lambda_y_1 = torch.matmul(h,blambda_y_1).reshape(self.x_train.shape)
         lambda_dx_1 = torch.matmul(h,blambda_dx_1).reshape(self.x_train.shape)
         lambda_dy_1= torch.matmul(h,blambda_dy_1).reshape(self.x_train.shape)
         lambda_dtheta_1 = torch.matmul(h,blambda_dtheta_1).reshape(self.x_train.shape)
         lambda_ddelta_1 = torch.matmul(h,blambda_ddelta_1).reshape(self.x_train.shape)
-        # lambda_x_2 = torch.matmul(h,blambda_x_2).reshape(self.x_train.shape)
-        # lambda_y_2 = torch.matmul(h,blambda_y_2).reshape(self.x_train.shape)
+        lambda_x_2 = torch.matmul(h,blambda_x_2).reshape(self.x_train.shape)
+        lambda_y_2 = torch.matmul(h,blambda_y_2).reshape(self.x_train.shape)
         lambda_dx_2 = torch.matmul(h,blambda_dx_2).reshape(self.x_train.shape)
         lambda_dy_2= torch.matmul(h,blambda_dy_2).reshape(self.x_train.shape)
         lambda_dtheta_2 = torch.matmul(h,blambda_dtheta_2).reshape(self.x_train.shape)
@@ -343,7 +504,7 @@ class XTFC_veh(PIELM):
         # l_lambda_dx_2_threshold = lambda_dx_2**4
         # l_lambda_dy_1_threshold = lambda_dy_1**4
         # l_lambda_dy_2_threshold = lambda_dy_2**4
-       
+    #    
         # ddx_1_threshold = ddhx_1**4
         # dx_1_threshold = dhx_1**2
         # ddx_2_threshold = ddhx_2**4
@@ -352,6 +513,11 @@ class XTFC_veh(PIELM):
         # dy_1_threshold = dhy_1**2
         # ddy_2_threshold = ddhy_2**4
         # dy_2_threshold = dhy_2**2
+
+        
+        
+        
+        
         # l_y_1 = hy_1 - (init_y_1+final_y_1)/2 
         # l_x_2 = hx_2 - (init_x_2+final_y_2)/2
 
@@ -380,8 +546,12 @@ class XTFC_veh(PIELM):
                               l_lambda_ddx_2,
                               l_lambda_ddy_2,
                               l_lambda_dtheta_2,
-                              l_lambda_ddelta_2\
+                              l_lambda_ddelta_2,\
                             #     ,
+                            #   dd_1_threshold,
+                            #   d_1_threshold,
+                            #   dd_2_threshold,
+                            #   d_2_threshold,
                             #   l_lambda_dx_1_threshold,
                             #   l_lambda_dx_2_threshold,
                             #   l_lambda_dy_1_threshold,
@@ -602,6 +772,156 @@ class XTFC_veh(PIELM):
         ddhy_2 = self.c**2*torch.matmul(dhh.add(dd_phi1_h1).add(dd_phi2_hf).add(dd_phi3_dh1).add(dd_phi4_ddh1),by_2).reshape(self.x_train.shape)\
             .add(dd_phi1_y2_init).add(dd_phi2_y2_final).add(dd_phi3_vy2_init/self.c).add(dd_phi4_ay2_init/self.c**2)
 
+# Add inequality constraints for x on car 1:
+        y_x_1 = hx_1
+        y_y_2 = hy_2
+        f_u = -self.d*5+y_y_2-init_y_2+init_x_1
+        # f_l =  -self.d+y_x_2
+        heaviside_u = 1/2+1/2*torch.tanh(self.k*(y_x_1-f_u))
+        # heaviside_l = 1/2+1/2*torch.tanh(self.k*(f_l-y_x_1))
+        # 
+        # f_r_u_1 = init_y_1+self.d
+        # f_r_l_1 = init_y_1-self.d
+        # heaviside_r_u = 1/2+1/2*torch.tanh(self.k*(y_x_1-f_r_u_1))
+        # heaviside_r_l = 1/2+1/2*torch.tanh(self.k*(f_r_l_1-y_x_1))
+
+        hx_1 = y_x_1 + (f_u-hx_1)*(heaviside_u)
+            #   + (f_r_u_1-hx_1)*(heaviside_r_u)+(f_r_l_1-hx_1)*(heaviside_r_l)
+        y_dx_1 = dhx_1 
+        y_dy_2 = dhy_2 
+        # d_heaviside_u = 1/2*(1-torch.tanh(self.k*(y_x_1-f_u))**2*self.k*(y_dx_1-y_dy_2)) 
+        # d_heaviside_l = 1/2*(1-torch.tanh(self.k*(f_l-y_x_1))**2*self.k*(y_dx_2-y_dx_1))
+        # d_heaviside_r_u = 1/2*(1-torch.tanh(self.k*(y_x_1-f_r_u_1))**2*self.k*(y_dx_1)) 
+        # d_heaviside_r_l = 1/2*(1-torch.tanh(self.k*(f_r_l_1-y_x_1))**2*self.k*(-y_dx_1))
+        # 
+        dhx_1 = y_dx_1 +(y_dy_2-y_dx_1)*(heaviside_u)
+        #                +(-y_dx_1)*(heaviside_r_u)+(f_r_u_1-hx_1)*(d_heaviside_r_u)+(-y_dx_1)*(heaviside_r_l)+(f_r_l_1-hx_1)*(d_heaviside_r_l)
+        # 
+        y_ddx_1 = ddhx_1
+        y_ddy_2 = ddhy_2
+        # dd_heaviside_u = -self.k*torch.tanh(self.k*(y_x_1-f_u))*(1-torch.tanh(self.k*(y_x_1-f_u))**2)*self.k*(y_dx_1-y_dy_2)**2-self.k/2*torch.tanh(self.k*(y_x_1-f_u))**2*self.k*(y_ddx_1-y_ddy_2)
+        # dd_heaviside_l = -self.k*torch.tanh(self.k*(f_l-y_x_1))*(1-torch.tanh(self.k*(f_l-y_x_1))**2)*self.k*(y_dx_2-y_dx_1)**2-self.k/2*torch.tanh(self.k*(f_l-y_x_1))**2*self.k*(y_ddx_2-y_ddx_1)
+        # dd_heaviside_r_u = -self.k*torch.tanh(self.k*(y_x_1-f_r_u_1))*(1-torch.tanh(self.k*(y_x_1-f_r_u_1))**2)*self.k*(y_dx_1)**2-self.k/2*torch.tanh(self.k*(y_x_1-f_r_u_1))**2*self.k*(y_ddx_1)
+        # dd_heaviside_r_l = -self.k*torch.tanh(self.k*(f_r_l_1-y_x_1))*(1-torch.tanh(self.k*(f_r_l_1-y_x_1))**2)*self.k*(-y_dx_1)**2-self.k/2*torch.tanh(self.k*(f_r_l_1-y_x_1))**2*self.k*(-y_ddx_1)
+# 
+        ddhx_1 = y_ddx_1 + (y_ddy_2-y_ddx_1)*(heaviside_u)
+                        #  + (-y_ddx_1)*(heaviside_r_u)+(-y_dx_1)*(d_heaviside_r_u)+(-y_dx_1)*(d_heaviside_r_u)+(f_r_u_1-hx_1)*(dd_heaviside_r_u)-(y_ddx_1)*(heaviside_r_l)+(-y_dx_1)*(d_heaviside_r_l)+(-y_dx_1)*(d_heaviside_r_l)+(f_r_l_1-hx_1)*(dd_heaviside_r_l)
+        
+        
+        # Add inequality constraints for y on car 1:
+        y_y_1 = hy_1
+        # y_y_2 = hy_2
+        # f_u = -self.d*5+y_y_2-init_y_2+init_x_1
+        # f_l =  -self.d+y_x_2
+        # heaviside_u = 1/2+1/2*torch.tanh(self.k*(y_x_1-f_u))
+        # heaviside_l = 1/2+1/2*torch.tanh(self.k*(f_l-y_x_1))
+        # 
+        f_r_u_1 = init_y_1+self.d
+        f_r_l_1 = init_y_1-self.d
+        heaviside_r_u = 1/2+1/2*torch.tanh(self.k*(y_y_1-f_r_u_1))
+        heaviside_r_l = 1/2+1/2*torch.tanh(self.k*(f_r_l_1-y_y_1))
+# 
+        hy_1 = y_y_1 +(f_r_u_1-hy_1)*(heaviside_r_u)+(f_r_l_1-hy_1)*(heaviside_r_l)
+        # \ (f_u-hx_1)*(heaviside_u)
+               
+        y_dy_1 = dhy_1 
+        # y_dy_2 = dhy_2 
+        # d_heaviside_u = 1/2*(1-torch.tanh(self.k*(y_x_1-f_u))**2*self.k*(y_dx_1-y_dy_2)) 
+        # d_heaviside_l = 1/2*(1-torch.tanh(self.k*(f_l-y_x_1))**2*self.k*(y_dx_2-y_dx_1))
+        # d_heaviside_r_u = 1/2*(1-torch.tanh(self.k*(y_y_1-f_r_u_1))**2*self.k*(y_dy_1)) 
+        # d_heaviside_r_l = 1/2*(1-torch.tanh(self.k*(f_r_l_1-y_y_1))**2*self.k*(-y_dy_1))
+        # 
+        dhy_1 = y_dy_1 +(-y_dy_1)*(heaviside_r_u)+(-y_dy_1)*(heaviside_r_l)
+        # (y_dy_2-y_dx_1)*(heaviside_u)+(f_u-y_x_1)*(d_heaviside_u)
+                       
+        # 
+        y_ddy_1 = ddhy_1
+        # y_ddy_2 = ddhy_2
+        # dd_heaviside_u = -self.k*torch.tanh(self.k*(y_x_1-f_u))*(1-torch.tanh(self.k*(y_x_1-f_u))**2)*self.k*(y_dx_1-y_dy_2)**2-self.k/2*torch.tanh(self.k*(y_x_1-f_u))**2*self.k*(y_ddx_1-y_ddy_2)
+        # dd_heaviside_l = -self.k*torch.tanh(self.k*(f_l-y_x_1))*(1-torch.tanh(self.k*(f_l-y_x_1))**2)*self.k*(y_dx_2-y_dx_1)**2-self.k/2*torch.tanh(self.k*(f_l-y_x_1))**2*self.k*(y_ddx_2-y_ddx_1)
+        # dd_heaviside_r_u = -self.k*torch.tanh(self.k*(y_y_1-f_r_u_1))*(1-torch.tanh(self.k*(y_y_1-f_r_u_1))**2)*self.k*(y_dy_1)**2-self.k/2*torch.tanh(self.k*(y_y_1-f_r_u_1))**2*self.k*(y_ddy_1)
+        # dd_heaviside_r_l = -self.k*torch.tanh(self.k*(f_r_l_1-y_y_1))*(1-torch.tanh(self.k*(f_r_l_1-y_y_1))**2)*self.k*(-y_dy_1)**2-self.k/2*torch.tanh(self.k*(f_r_l_1-y_y_1))**2*self.k*(-y_ddy_1)
+# 
+        ddhy_1 = y_ddy_1 +(-y_ddy_1)*(heaviside_r_u)-(y_ddy_1)*(heaviside_r_l)
+        # (y_ddy_2-y_ddx_1)*(heaviside_u)+(y_dy_2-y_dx_1)*(d_heaviside_u)+(y_dy_2-y_dx_1)*(d_heaviside_u)+(f_u-y_x_1)*(dd_heaviside_u)
+        
+        
+
+        #Add inequality constraints for y on car 2:
+        y_x_1 = hx_1
+        y_y_2 = hy_2
+        # f_u = -self.d*5+y_y_2-init_y_2+init_x_1
+        f_l = self.d*5+y_x_1+init_y_2-init_x_1
+        # heaviside_u = 1/2+1/2*torch.tanh(self.k*(y_x_1-f_u))
+        heaviside_l = 1/2+1/2*torch.tanh(self.k*(f_l-y_y_2))
+        # 
+        # f_r_u_1 = init_y_1+self.d
+        # f_r_l_1 = init_y_1-self.d
+        # heaviside_r_u = 1/2+1/2*torch.tanh(self.k*(y_x_1-f_r_u_1))
+        # heaviside_r_l = 1/2+1/2*torch.tanh(self.k*(f_r_l_1-y_x_1))
+# 
+        hy_2 = y_y_2 + (f_l-hy_2)*(heaviside_l)
+            #   + (f_r_u_1-hx_1)*(heaviside_r_u)+(f_r_l_1-hx_1)*(heaviside_r_l)
+        y_dx_1 = dhx_1 
+        y_dy_2 = dhy_2 
+        # d_heaviside_u = 1/2*(1-torch.tanh(self.k*(y_x_1-f_u))**2*self.k*(y_dx_1-y_dy_2)) 
+        # d_heaviside_l = 1/2*(1-torch.tanh(self.k*(f_l-y_y_2))**2*self.k*(y_dx_1-y_dy_2)) 
+        # d_heaviside_l = 1/2*(1-torch.tanh(self.k*(f_l-y_x_1))**2*self.k*(y_dx_2-y_dx_1))
+        # d_heaviside_r_u = 1/2*(1-torch.tanh(self.k*(y_x_1-f_r_u_1))**2*self.k*(y_dx_1)) 
+        # d_heaviside_r_l = 1/2*(1-torch.tanh(self.k*(f_r_l_1-y_x_1))**2*self.k*(-y_dx_1))
+        # 
+        dhy_2 = y_dy_2 +(y_dx_1-y_dy_2)*(heaviside_l)
+        #                +(-y_dx_1)*(heaviside_r_u)+(f_r_u_1-hx_1)*(d_heaviside_r_u)+(-y_dx_1)*(heaviside_r_l)+(f_r_l_1-hx_1)*(d_heaviside_r_l)
+        # 
+        y_ddx_1 = ddhx_1
+        y_ddy_2 = ddhy_2
+        # dd_heaviside_l = -self.k*torch.tanh(self.k*(f_l-y_y_2))*(1-torch.tanh(self.k*(f_l-y_y_2))**2)*self.k*(y_dx_1-y_dy_2)**2-self.k/2*torch.tanh(self.k*(f_l-y_y_2))**2*self.k*(y_ddx_1-y_ddy_2)
+        # dd_heaviside_l = -self.k*torch.tanh(self.k*(f_l-y_x_1))*(1-torch.tanh(self.k*(f_l-y_x_1))**2)*self.k*(y_dx_2-y_dx_1)**2-self.k/2*torch.tanh(self.k*(f_l-y_x_1))**2*self.k*(y_ddx_2-y_ddx_1)
+        # dd_heaviside_r_u = -self.k*torch.tanh(self.k*(y_x_1-f_r_u_1))*(1-torch.tanh(self.k*(y_x_1-f_r_u_1))**2)*self.k*(y_dx_1)**2-self.k/2*torch.tanh(self.k*(y_x_1-f_r_u_1))**2*self.k*(y_ddx_1)
+        # dd_heaviside_r_l = -self.k*torch.tanh(self.k*(f_r_l_1-y_x_1))*(1-torch.tanh(self.k*(f_r_l_1-y_x_1))**2)*self.k*(-y_dx_1)**2-self.k/2*torch.tanh(self.k*(f_r_l_1-y_x_1))**2*self.k*(-y_ddx_1)
+# 
+        ddhy_2 = y_ddy_2 + (y_ddx_1-y_ddy_2)*(heaviside_l)
+                        #  + (-y_ddx_1)*(heaviside_r_u)+(-y_dx_1)*(d_heaviside_r_u)+(-y_dx_1)*(d_heaviside_r_u)+(f_r_u_1-hx_1)*(dd_heaviside_r_u)-(y_ddx_1)*(heaviside_r_l)+(-y_dx_1)*(d_heaviside_r_l)+(-y_dx_1)*(d_heaviside_r_l)+(f_r_l_1-hx_1)*(dd_heaviside_r_l)
+        
+        #Add inequality constraints for x on car 2:
+        # y_y_1 = hy_1
+        y_x_2 = hx_2
+        # f_u = -self.d*5+y_y_2-init_y_2+init_x_1
+        # f_l =  -self.d+y_x_2
+        # heaviside_u = 1/2+1/2*torch.tanh(self.k*(y_x_1-f_u))
+        # heaviside_l = 1/2+1/2*torch.tanh(self.k*(f_l-y_x_1))
+        # 
+        f_r_u_2 = init_x_2+self.d
+        f_r_l_2 = init_x_2-self.d
+        heaviside_r_u = 1/2+1/2*torch.tanh(self.k*(y_x_2-f_r_u_2))
+        heaviside_r_l = 1/2+1/2*torch.tanh(self.k*(f_r_l_2-y_x_2))
+# 
+        hx_2 = y_x_2 +(f_r_u_2-hx_2)*(heaviside_r_u)+(f_r_l_2-hx_2)*(heaviside_r_l)
+        # \ (f_u-hx_1)*(heaviside_u)
+               
+        # y_dy_1 = dhy_1 
+        y_dx_2 = dhx_2 
+        # d_heaviside_u = 1/2*(1-torch.tanh(self.k*(y_x_1-f_u))**2*self.k*(y_dx_1-y_dy_2)) 
+        # d_heaviside_l = 1/2*(1-torch.tanh(self.k*(f_l-y_x_1))**2*self.k*(y_dx_2-y_dx_1))
+        # d_heaviside_r_u = 1/2*(1-torch.tanh(self.k*(y_x_2-f_r_u_2))**2*self.k*(y_dx_2)) 
+        # d_heaviside_r_l = 1/2*(1-torch.tanh(self.k*(f_r_l_2-y_x_2))**2*self.k*(-y_dx_2))
+        # 
+        dhx_2 = y_dx_2 +(-y_dx_2)*(heaviside_r_u)+(-y_dx_2)*(heaviside_r_l)
+        # (y_dy_2-y_dx_1)*(heaviside_u)+(f_u-y_x_1)*(d_heaviside_u)
+                       
+        # 
+        # y_ddy_1 = ddhy_1
+        y_ddx_2 = ddhx_2
+        # dd_heaviside_u = -self.k*torch.tanh(self.k*(y_x_1-f_u))*(1-torch.tanh(self.k*(y_x_1-f_u))**2)*self.k*(y_dx_1-y_dy_2)**2-self.k/2*torch.tanh(self.k*(y_x_1-f_u))**2*self.k*(y_ddx_1-y_ddy_2)
+        # dd_heaviside_l = -self.k*torch.tanh(self.k*(f_l-y_x_1))*(1-torch.tanh(self.k*(f_l-y_x_1))**2)*self.k*(y_dx_2-y_dx_1)**2-self.k/2*torch.tanh(self.k*(f_l-y_x_1))**2*self.k*(y_ddx_2-y_ddx_1)
+        # dd_heaviside_r_u = -self.k*torch.tanh(self.k*(y_x_2-f_r_u_2))*(1-torch.tanh(self.k*(y_x_2-f_r_u_2))**2)*self.k*(y_dx_2)**2-self.k/2*torch.tanh(self.k*(y_x_2-f_r_u_2))**2*self.k*(y_ddx_2)
+        # dd_heaviside_r_l = -self.k*torch.tanh(self.k*(f_r_l_2-y_x_2))*(1-torch.tanh(self.k*(f_r_l_2-y_x_2))**2)*self.k*(-y_dx_2)**2-self.k/2*torch.tanh(self.k*(f_r_l_2-y_x_2))**2*self.k*(-y_ddx_2)
+# 
+        ddhx_2 = y_ddx_2 +(-y_ddx_2)*(heaviside_r_u)-(y_ddx_2)*(heaviside_r_l)
+        # (y_ddy_2-y_ddx_1)*(heaviside_u)+(y_dy_2-y_dx_1)*(d_heaviside_u)+(y_dy_2-y_dx_1)*(d_heaviside_u)+(f_u-y_x_1)*(dd_heaviside_u)
+        
+
+
         support_function_matrix = np.array([[1,init_time],[1,final_time]])
         coefficients_matrix = torch.tensor(np.linalg.inv(support_function_matrix),dtype=torch.float)
         
@@ -640,14 +960,14 @@ class XTFC_veh(PIELM):
         dhdelta_2 = torch.matmul(dh,bdelta_2).reshape(self.x_train.shape)
 
         
-        # lambda_x_1 = torch.matmul(h,blambda_x_1).reshape(self.x_train.shape)
-        # lambda_y_1 = torch.matmul(h,blambda_y_1).reshape(self.x_train.shape)
+        lambda_x_1 = torch.matmul(h,blambda_x_1).reshape(self.x_train.shape)
+        lambda_y_1 = torch.matmul(h,blambda_y_1).reshape(self.x_train.shape)
         lambda_dx_1 = torch.matmul(h,blambda_dx_1).reshape(self.x_train.shape)
         lambda_dy_1= torch.matmul(h,blambda_dy_1).reshape(self.x_train.shape)
         lambda_dtheta_1 = torch.matmul(h,blambda_dtheta_1).reshape(self.x_train.shape)
         lambda_ddelta_1 = torch.matmul(h,blambda_ddelta_1).reshape(self.x_train.shape)
-        # lambda_x_2 = torch.matmul(h,blambda_x_2).reshape(self.x_train.shape)
-        # lambda_y_2 = torch.matmul(h,blambda_y_2).reshape(self.x_train.shape)
+        lambda_x_2 = torch.matmul(h,blambda_x_2).reshape(self.x_train.shape)
+        lambda_y_2 = torch.matmul(h,blambda_y_2).reshape(self.x_train.shape)
         lambda_dx_2 = torch.matmul(h,blambda_dx_2).reshape(self.x_train.shape)
         lambda_dy_2= torch.matmul(h,blambda_dy_2).reshape(self.x_train.shape)
         lambda_dtheta_2 = torch.matmul(h,blambda_dtheta_2).reshape(self.x_train.shape)
@@ -670,6 +990,8 @@ class XTFC_veh(PIELM):
         dhv_y_2 = (v_2)**(-1/2)*dhy_2
         dcos_slip_2_x = torch.sin(torch.atan(dhy_2/dhx_2))*(dhy_2*dhx_2**-2)/(1+(dhy_2/dhx_2)**2)
         dcos_slip_2_y = -torch.sin(torch.atan(dhy_2/dhx_2))*(dhx_2**-1)/(1+(dhy_2/dhx_2)**2)
+      
+        
         cos_theta_2 = torch.cos(htheta_2)
         sin_theta_2 = torch.sin(htheta_2)
         tan_delta_2 = torch.tan(hdelta_2)
@@ -702,11 +1024,14 @@ class XTFC_veh(PIELM):
         l_lambda_dtheta_2 =lambda_dtheta_2 -(lambda_dx_2*v_2*sin_theta_2-lambda_dy_2*v_2*cos_theta_2)
         l_lambda_ddelta_2 =lambda_ddelta_2 -(-lambda_dtheta_2/self.l*cos_slip_2*v_2*(1/torch.cos(hdelta_2))**2)
         
-        # l_lambda_dx_1_threshold = lambda_dx_1**4
-        # l_lambda_dx_2_threshold = lambda_dx_2**4
+        # l_lambda_a_1_threshold = lambda_dx_1**4
+        # l_lambda_a_2_threshold = lambda_dx_2**4
         # l_lambda_dy_1_threshold = lambda_dy_1**4
         # l_lambda_dy_2_threshold = lambda_dy_2**4
-        # ddx_1_threshold = ddhx_1**4
+        
+        
+        
+        
         # dx_1_threshold = dhx_1**2
         # ddx_2_threshold = ddhx_2**4
         # dx_2_threshold = dhx_2**2
@@ -729,17 +1054,43 @@ class XTFC_veh(PIELM):
         # print(l_lambda_dtheta_1.mean(),l_lambda_dtheta_1.max(),l_lambda_dtheta_2.mean(),l_lambda_dtheta_2.max())
         # print(l_lambda_ddelta_1.mean(),l_lambda_ddelta_1.max(),l_lambda_ddelta_2.mean(),l_lambda_ddelta_2.max())
         # print("\n")
+
+        # print(torch.isnan(l_dx_1).any())
+        # print(torch.isnan(l_dy_1).any())
+        # print(torch.isnan(l_ddx_1).any())
+        # print(torch.isnan(l_ddy_1).any())
+        # print(torch.isnan(l_dtheta_1).any())
+        # print(torch.isnan(l_ddelta_1).any())
+        # print(torch.isnan(l_lambda_ddx_1).any())
+        # print(torch.isnan(l_lambda_ddy_1).any())
+        # print(torch.isnan(l_lambda_dtheta_1).any())
+        # print(torch.isnan(l_lambda_ddelta_1).any())
+        # print(torch.isnan(l_dx_2).any())
+        # print(torch.isnan(l_dy_2).any())
+        # print(torch.isnan(l_ddx_2).any())
+        # print(torch.isnan(l_ddy_2).any())
+        # print(torch.isnan(l_dtheta_2).any())
+        # print(torch.isnan(l_ddelta_2).any())
+        # print(torch.isnan(l_lambda_ddx_2).any())
+        # print(torch.isnan(l_lambda_ddy_2).any())
+        # print(torch.isnan(l_lambda_dtheta_2).any())
+        # print(torch.isnan(l_lambda_ddelta_2).any())
         
-        print((l_dx_1**2).mean(),(l_dx_2**2).mean())
-        print((l_dy_1**2).mean(),(l_dy_2**2).mean())
-        print((l_ddx_1**2).mean(),(l_ddx_2**2).mean())
-        print((l_ddy_1**2).mean(),(l_ddy_2**2).mean())
-        print((l_dtheta_1**2).mean(),(l_dtheta_2**2).mean())
-        print((l_ddelta_1**2).mean(),(l_ddelta_2**2).mean())
-        print((l_lambda_ddx_1**2).mean(),(l_lambda_ddx_2**2).mean())
-        print((l_lambda_ddy_1**2).mean(),(l_lambda_ddy_2**2).mean())
-        print((l_lambda_dtheta_1**2).mean(),(l_lambda_dtheta_2**2).mean())
-        print((l_lambda_ddelta_1**2).mean(),(l_lambda_ddelta_2**2).mean())
+        # print(l_lambda_ddy_2)
+        
+# l_lambda_ddy_2 =lambda_dy_2 -(-lambda_dx_2*cos_theta_2*dhv_y_2-lambda_dy_2*sin_theta_2*dhv_y_2-lambda_dtheta_2*tan_delta_2/self.l*(dhv_y_2*cos_slip_2+dcos_slip_2_y*v_2))
+
+
+        # print((l_dx_1**2).mean(),(l_dx_2**2).mean())
+        # print((l_dy_1**2).mean(),(l_dy_2**2).mean())
+        # print((l_ddx_1**2).mean(),(l_ddx_2**2).mean())
+        # print((l_ddy_1**2).mean(),(l_ddy_2**2).mean())
+        # print((l_dtheta_1**2).mean(),(l_dtheta_2**2).mean())
+        # print((l_ddelta_1**2).mean(),(l_ddelta_2**2).mean())
+        # print((l_lambda_ddx_1**2).mean(),(l_lambda_ddx_2**2).mean())
+        # print((l_lambda_ddy_1**2).mean(),(l_lambda_ddy_2**2).mean())
+        # print((l_lambda_dtheta_1**2).mean(),(l_lambda_dtheta_2**2).mean())
+        # print((l_lambda_ddelta_1**2).mean(),(l_lambda_ddelta_2**2).mean())
         # l_y_1 = hy_1 - (init_y_1+final_y_1)/2 
         # l_x_2 = hx_2 - (init_x_2+final_y_2)/2
         
@@ -770,6 +1121,10 @@ class XTFC_veh(PIELM):
                             #   l_y_1,
                             #   l_x_2
                             #   ,
+                            # dd_1_threshold,
+                            # d_1_threshold,
+                            # dd_2_threshold,
+                            # d_2_threshold,
                             #   l_lambda_dx_1_threshold,
                             #   l_lambda_dx_2_threshold,
                             #   l_lambda_dy_1_threshold,
@@ -1020,7 +1375,158 @@ class XTFC_veh(PIELM):
         ddhy_2 = self.c**2*torch.matmul(dhh.add(dd_phi1_h1).add(dd_phi2_hf).add(dd_phi3_dh1).add(dd_phi4_ddh1),by_2).reshape(self.x_train.shape)\
             .add(dd_phi1_y2_init).add(dd_phi2_y2_final).add(dd_phi3_vy2_init/self.c).add(dd_phi4_ay2_init/self.c**2)
 
-    
+        
+        # Add inequality constraints for x on car 1:
+        y_x_1 = hx_1
+        y_y_2 = hy_2
+        f_u = -self.d*5+y_y_2-init_y_2+init_x_1
+        # f_l =  -self.d+y_x_2
+        heaviside_u = 1/2+1/2*torch.tanh(self.k*(y_x_1-f_u))
+        # heaviside_l = 1/2+1/2*torch.tanh(self.k*(f_l-y_x_1))
+        # 
+        # f_r_u_1 = init_y_1+self.d
+        # f_r_l_1 = init_y_1-self.d
+        # heaviside_r_u = 1/2+1/2*torch.tanh(self.k*(y_x_1-f_r_u_1))
+        # heaviside_r_l = 1/2+1/2*torch.tanh(self.k*(f_r_l_1-y_x_1))
+
+        hx_1 = y_x_1 + (f_u-hx_1)*(heaviside_u)
+            #   + (f_r_u_1-hx_1)*(heaviside_r_u)+(f_r_l_1-hx_1)*(heaviside_r_l)
+        y_dx_1 = dhx_1 
+        y_dy_2 = dhy_2 
+        # d_heaviside_u = 1/2*(1-torch.tanh(self.k*(y_x_1-f_u))**2*self.k*(y_dx_1-y_dy_2)) 
+        # d_heaviside_l = 1/2*(1-torch.tanh(self.k*(f_l-y_x_1))**2*self.k*(y_dx_2-y_dx_1))
+        # d_heaviside_r_u = 1/2*(1-torch.tanh(self.k*(y_x_1-f_r_u_1))**2*self.k*(y_dx_1)) 
+        # d_heaviside_r_l = 1/2*(1-torch.tanh(self.k*(f_r_l_1-y_x_1))**2*self.k*(-y_dx_1))
+        # 
+        dhx_1 = y_dx_1 +(y_dy_2-y_dx_1)*(heaviside_u)
+        #                +(-y_dx_1)*(heaviside_r_u)+(f_r_u_1-hx_1)*(d_heaviside_r_u)+(-y_dx_1)*(heaviside_r_l)+(f_r_l_1-hx_1)*(d_heaviside_r_l)
+        # 
+        y_ddx_1 = ddhx_1
+        y_ddy_2 = ddhy_2
+        # dd_heaviside_u = -self.k*torch.tanh(self.k*(y_x_1-f_u))*(1-torch.tanh(self.k*(y_x_1-f_u))**2)*self.k*(y_dx_1-y_dy_2)**2-self.k/2*torch.tanh(self.k*(y_x_1-f_u))**2*self.k*(y_ddx_1-y_ddy_2)
+        # dd_heaviside_l = -self.k*torch.tanh(self.k*(f_l-y_x_1))*(1-torch.tanh(self.k*(f_l-y_x_1))**2)*self.k*(y_dx_2-y_dx_1)**2-self.k/2*torch.tanh(self.k*(f_l-y_x_1))**2*self.k*(y_ddx_2-y_ddx_1)
+        # dd_heaviside_r_u = -self.k*torch.tanh(self.k*(y_x_1-f_r_u_1))*(1-torch.tanh(self.k*(y_x_1-f_r_u_1))**2)*self.k*(y_dx_1)**2-self.k/2*torch.tanh(self.k*(y_x_1-f_r_u_1))**2*self.k*(y_ddx_1)
+        # dd_heaviside_r_l = -self.k*torch.tanh(self.k*(f_r_l_1-y_x_1))*(1-torch.tanh(self.k*(f_r_l_1-y_x_1))**2)*self.k*(-y_dx_1)**2-self.k/2*torch.tanh(self.k*(f_r_l_1-y_x_1))**2*self.k*(-y_ddx_1)
+# 
+        ddhx_1 = y_ddx_1 + (y_ddy_2-y_ddx_1)*(heaviside_u)
+                        #  + (-y_ddx_1)*(heaviside_r_u)+(-y_dx_1)*(d_heaviside_r_u)+(-y_dx_1)*(d_heaviside_r_u)+(f_r_u_1-hx_1)*(dd_heaviside_r_u)-(y_ddx_1)*(heaviside_r_l)+(-y_dx_1)*(d_heaviside_r_l)+(-y_dx_1)*(d_heaviside_r_l)+(f_r_l_1-hx_1)*(dd_heaviside_r_l)
+        
+        
+        # Add inequality constraints for y on car 1:
+        y_y_1 = hy_1
+        # y_y_2 = hy_2
+        # f_u = -self.d*5+y_y_2-init_y_2+init_x_1
+        # f_l =  -self.d+y_x_2
+        # heaviside_u = 1/2+1/2*torch.tanh(self.k*(y_x_1-f_u))
+        # heaviside_l = 1/2+1/2*torch.tanh(self.k*(f_l-y_x_1))
+        # 
+        f_r_u_1 = init_y_1+self.d
+        f_r_l_1 = init_y_1-self.d
+        heaviside_r_u = 1/2+1/2*torch.tanh(self.k*(y_y_1-f_r_u_1))
+        heaviside_r_l = 1/2+1/2*torch.tanh(self.k*(f_r_l_1-y_y_1))
+# 
+        hy_1 = y_y_1 +(f_r_u_1-hy_1)*(heaviside_r_u)+(f_r_l_1-hy_1)*(heaviside_r_l)
+        # \ (f_u-hx_1)*(heaviside_u)
+               
+        y_dy_1 = dhy_1 
+        # y_dy_2 = dhy_2 
+        # d_heaviside_u = 1/2*(1-torch.tanh(self.k*(y_x_1-f_u))**2*self.k*(y_dx_1-y_dy_2)) 
+        # d_heaviside_l = 1/2*(1-torch.tanh(self.k*(f_l-y_x_1))**2*self.k*(y_dx_2-y_dx_1))
+        # d_heaviside_r_u = 1/2*(1-torch.tanh(self.k*(y_y_1-f_r_u_1))**2*self.k*(y_dy_1)) 
+        # d_heaviside_r_l = 1/2*(1-torch.tanh(self.k*(f_r_l_1-y_y_1))**2*self.k*(-y_dy_1))
+        # 
+        dhy_1 = y_dy_1 +(-y_dy_1)*(heaviside_r_u)+(-y_dy_1)*(heaviside_r_l)
+        # (y_dy_2-y_dx_1)*(heaviside_u)+(f_u-y_x_1)*(d_heaviside_u)
+                       
+        # 
+        y_ddy_1 = ddhy_1
+        # y_ddy_2 = ddhy_2
+        # dd_heaviside_u = -self.k*torch.tanh(self.k*(y_x_1-f_u))*(1-torch.tanh(self.k*(y_x_1-f_u))**2)*self.k*(y_dx_1-y_dy_2)**2-self.k/2*torch.tanh(self.k*(y_x_1-f_u))**2*self.k*(y_ddx_1-y_ddy_2)
+        # dd_heaviside_l = -self.k*torch.tanh(self.k*(f_l-y_x_1))*(1-torch.tanh(self.k*(f_l-y_x_1))**2)*self.k*(y_dx_2-y_dx_1)**2-self.k/2*torch.tanh(self.k*(f_l-y_x_1))**2*self.k*(y_ddx_2-y_ddx_1)
+        # dd_heaviside_r_u = -self.k*torch.tanh(self.k*(y_y_1-f_r_u_1))*(1-torch.tanh(self.k*(y_y_1-f_r_u_1))**2)*self.k*(y_dy_1)**2-self.k/2*torch.tanh(self.k*(y_y_1-f_r_u_1))**2*self.k*(y_ddy_1)
+        # dd_heaviside_r_l = -self.k*torch.tanh(self.k*(f_r_l_1-y_y_1))*(1-torch.tanh(self.k*(f_r_l_1-y_y_1))**2)*self.k*(-y_dy_1)**2-self.k/2*torch.tanh(self.k*(f_r_l_1-y_y_1))**2*self.k*(-y_ddy_1)
+# 
+        ddhy_1 = y_ddy_1 +(-y_ddy_1)*(heaviside_r_u)-(y_ddy_1)*(heaviside_r_l)
+        # (y_ddy_2-y_ddx_1)*(heaviside_u)+(y_dy_2-y_dx_1)*(d_heaviside_u)+(y_dy_2-y_dx_1)*(d_heaviside_u)+(f_u-y_x_1)*(dd_heaviside_u)
+        
+        
+
+        #Add inequality constraints for y on car 2:
+        y_x_1 = hx_1
+        y_y_2 = hy_2
+        # f_u = -self.d*5+y_y_2-init_y_2+init_x_1
+        f_l = self.d*5+y_x_1+init_y_2-init_x_1
+        # heaviside_u = 1/2+1/2*torch.tanh(self.k*(y_x_1-f_u))
+        heaviside_l = 1/2+1/2*torch.tanh(self.k*(f_l-y_y_2))
+        # 
+        # f_r_u_1 = init_y_1+self.d
+        # f_r_l_1 = init_y_1-self.d
+        # heaviside_r_u = 1/2+1/2*torch.tanh(self.k*(y_x_1-f_r_u_1))
+        # heaviside_r_l = 1/2+1/2*torch.tanh(self.k*(f_r_l_1-y_x_1))
+# 
+        hy_2 = y_y_2 + (f_l-hy_2)*(heaviside_l)
+            #   + (f_r_u_1-hx_1)*(heaviside_r_u)+(f_r_l_1-hx_1)*(heaviside_r_l)
+        y_dx_1 = dhx_1 
+        y_dy_2 = dhy_2 
+        # d_heaviside_u = 1/2*(1-torch.tanh(self.k*(y_x_1-f_u))**2*self.k*(y_dx_1-y_dy_2)) 
+        # d_heaviside_l = 1/2*(1-torch.tanh(self.k*(f_l-y_y_2))**2*self.k*(y_dx_1-y_dy_2)) 
+        # d_heaviside_l = 1/2*(1-torch.tanh(self.k*(f_l-y_x_1))**2*self.k*(y_dx_2-y_dx_1))
+        # d_heaviside_r_u = 1/2*(1-torch.tanh(self.k*(y_x_1-f_r_u_1))**2*self.k*(y_dx_1)) 
+        # d_heaviside_r_l = 1/2*(1-torch.tanh(self.k*(f_r_l_1-y_x_1))**2*self.k*(-y_dx_1))
+        # 
+        dhy_2 = y_dy_2 +(y_dx_1-y_dy_2)*(heaviside_l)
+        #                +(-y_dx_1)*(heaviside_r_u)+(f_r_u_1-hx_1)*(d_heaviside_r_u)+(-y_dx_1)*(heaviside_r_l)+(f_r_l_1-hx_1)*(d_heaviside_r_l)
+        # 
+        y_ddx_1 = ddhx_1
+        y_ddy_2 = ddhy_2
+        # dd_heaviside_l = -self.k*torch.tanh(self.k*(f_l-y_y_2))*(1-torch.tanh(self.k*(f_l-y_y_2))**2)*self.k*(y_dx_1-y_dy_2)**2-self.k/2*torch.tanh(self.k*(f_l-y_y_2))**2*self.k*(y_ddx_1-y_ddy_2)
+        # dd_heaviside_l = -self.k*torch.tanh(self.k*(f_l-y_x_1))*(1-torch.tanh(self.k*(f_l-y_x_1))**2)*self.k*(y_dx_2-y_dx_1)**2-self.k/2*torch.tanh(self.k*(f_l-y_x_1))**2*self.k*(y_ddx_2-y_ddx_1)
+        # dd_heaviside_r_u = -self.k*torch.tanh(self.k*(y_x_1-f_r_u_1))*(1-torch.tanh(self.k*(y_x_1-f_r_u_1))**2)*self.k*(y_dx_1)**2-self.k/2*torch.tanh(self.k*(y_x_1-f_r_u_1))**2*self.k*(y_ddx_1)
+        # dd_heaviside_r_l = -self.k*torch.tanh(self.k*(f_r_l_1-y_x_1))*(1-torch.tanh(self.k*(f_r_l_1-y_x_1))**2)*self.k*(-y_dx_1)**2-self.k/2*torch.tanh(self.k*(f_r_l_1-y_x_1))**2*self.k*(-y_ddx_1)
+# 
+        ddhy_2 = y_ddy_2 + (y_ddx_1-y_ddy_2)*(heaviside_l)
+                        #  + (-y_ddx_1)*(heaviside_r_u)+(-y_dx_1)*(d_heaviside_r_u)+(-y_dx_1)*(d_heaviside_r_u)+(f_r_u_1-hx_1)*(dd_heaviside_r_u)-(y_ddx_1)*(heaviside_r_l)+(-y_dx_1)*(d_heaviside_r_l)+(-y_dx_1)*(d_heaviside_r_l)+(f_r_l_1-hx_1)*(dd_heaviside_r_l)
+        
+        #Add inequality constraints for x on car 2:
+        # y_y_1 = hy_1
+        y_x_2 = hx_2
+        # f_u = -self.d*5+y_y_2-init_y_2+init_x_1
+        # f_l =  -self.d+y_x_2
+        # heaviside_u = 1/2+1/2*torch.tanh(self.k*(y_x_1-f_u))
+        # heaviside_l = 1/2+1/2*torch.tanh(self.k*(f_l-y_x_1))
+        # 
+        f_r_u_2 = init_x_2+self.d
+        f_r_l_2 = init_x_2-self.d
+        heaviside_r_u = 1/2+1/2*torch.tanh(self.k*(y_x_2-f_r_u_2))
+        heaviside_r_l = 1/2+1/2*torch.tanh(self.k*(f_r_l_2-y_x_2))
+# 
+        hx_2 = y_x_2 +(f_r_u_2-hx_2)*(heaviside_r_u)+(f_r_l_2-hx_2)*(heaviside_r_l)
+        
+        # \ (f_u-hx_1)*(heaviside_u)
+               
+        # y_dy_1 = dhy_1 
+        y_dx_2 = dhx_2 
+        # d_heaviside_u = 1/2*(1-torch.tanh(self.k*(y_x_1-f_u))**2*self.k*(y_dx_1-y_dy_2)) 
+        # d_heaviside_l = 1/2*(1-torch.tanh(self.k*(f_l-y_x_1))**2*self.k*(y_dx_2-y_dx_1))
+        # d_heaviside_r_u = 1/2*(1-torch.tanh(self.k*(y_x_2-f_r_u_2))**2*self.k*(y_dx_2)) 
+        # d_heaviside_r_l = 1/2*(1-torch.tanh(self.k*(f_r_l_2-y_x_2))**2*self.k*(-y_dx_2))
+        # 
+        dhx_2 = y_dx_2 +(-y_dx_2)*(heaviside_r_u)+(-y_dx_2)*(heaviside_r_l)
+        # (y_dy_2-y_dx_1)*(heaviside_u)+(f_u-y_x_1)*(d_heaviside_u)
+                       
+        # 
+        # y_ddy_1 = ddhy_1
+        y_ddx_2 = ddhx_2
+        # dd_heaviside_u = -self.k*torch.tanh(self.k*(y_x_1-f_u))*(1-torch.tanh(self.k*(y_x_1-f_u))**2)*self.k*(y_dx_1-y_dy_2)**2-self.k/2*torch.tanh(self.k*(y_x_1-f_u))**2*self.k*(y_ddx_1-y_ddy_2)
+        # dd_heaviside_l = -self.k*torch.tanh(self.k*(f_l-y_x_1))*(1-torch.tanh(self.k*(f_l-y_x_1))**2)*self.k*(y_dx_2-y_dx_1)**2-self.k/2*torch.tanh(self.k*(f_l-y_x_1))**2*self.k*(y_ddx_2-y_ddx_1)
+        # dd_heaviside_r_u = -self.k*torch.tanh(self.k*(y_x_2-f_r_u_2))*(1-torch.tanh(self.k*(y_x_2-f_r_u_2))**2)*self.k*(y_dx_2)**2-self.k/2*torch.tanh(self.k*(y_x_2-f_r_u_2))**2*self.k*(y_ddx_2)
+        # dd_heaviside_r_l = -self.k*torch.tanh(self.k*(f_r_l_2-y_x_2))*(1-torch.tanh(self.k*(f_r_l_2-y_x_2))**2)*self.k*(-y_dx_2)**2-self.k/2*torch.tanh(self.k*(f_r_l_2-y_x_2))**2*self.k*(-y_ddx_2)
+# 
+        ddhx_2 = y_ddx_2 +(-y_ddx_2)*(heaviside_r_u)-(y_ddx_2)*(heaviside_r_l)
+        # (y_ddy_2-y_ddx_1)*(heaviside_u)+(y_dy_2-y_dx_1)*(d_heaviside_u)+(y_dy_2-y_dx_1)*(d_heaviside_u)+(f_u-y_x_1)*(dd_heaviside_u)
+        
+
+
 
         support_function_matrix = np.array([[1,init_time],[1,final_time]])
         coefficients_matrix = torch.tensor(np.linalg.inv(support_function_matrix),dtype=torch.float)
