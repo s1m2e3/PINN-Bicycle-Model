@@ -39,48 +39,58 @@ def main():
     #             utm_coord = utm.from_latlon(y2_final, x2_final)
     #             x2_final = utm_coord[0] 
     #             y2_final = utm_coord[1]
+    df = pd.read_csv("left_turn_through.csv")
+    df["utm x"]=df["utm x"]-504000
+    df["utm y"]=df["utm y"]-3566000
+    df_1 = np.array(df[df["path"]=="through"][["utm x","utm y","heading","vx","vy","ax","ay","relative_propotion"]])
+    df_2 = np.array(df[df["path"]=="left turning"][["utm x","utm y","heading","vx","vy","ax","ay","relative_proportion"]])
     
-    x1_init = 125
-    y1_init = 618
-    x1_final = 59
-    y1_final = 618
-    x2_init  = 92
-    y2_init  = 646
-    x2_final = 92
-    y2_final = 571
-    theta1_init = np.pi
-    theta1_final = np.pi
-    theta2_init = 3*np.pi/4
-    theta2_final = 3*np.pi/4
     
-    v1x_init = -10
-    v1y_init = 2
-    a1x_init = -2
-    a1y_init = 0
-    v1x_final = 0
-    v1y_final = 0
-    a1x_final = 0
-    a1y_final = 0
+    # x1_init = 125
+    # y1_init = 618
+    # x1_final = 59
+    # y1_final = 618
+    # x2_init  = 92
+    # y2_init  = 646
+    # x2_final = 92
+    # y2_final = 571
+    # theta1_init = np.pi
+    # theta1_final = np.pi
+    # theta2_init = 3*np.pi/4
+    # theta2_final = 3*np.pi/4
     
-    v2x_init = 2
-    v2y_init = -10
-    a2x_init = 0
-    a2y_init = -2
-    v2x_final = 0
-    v2y_final = 0
-    a2x_final = 0
-    a2y_final = 0
+    # v1x_init = -10
+    # v1y_init = 2
+    # a1x_init = -2
+    # a1y_init = 0
+    # v1x_final = 0
+    # v1y_final = 0
+    # a1x_final = 0
+    # a1y_final = 0
+    
+    # v2x_init = 2
+    # v2y_init = -10
+    # a2x_init = 0
+    # a2y_init = -2
+    # v2x_final = 0
+    # v2y_final = 0
+    # a2x_final = 0
+    # a2y_final = 0
    
-
-    car1 = np.array([[x1_init,y1_init,theta1_init,v1x_init,v1y_init,a1x_init,a1y_init],\
-          [x1_final,y1_final,theta1_final,v1x_final,v1y_final,a1x_final,a1y_final]])
-    car2 = np.array([[x2_init,y2_init,theta2_init,v2x_init,v2y_init,a2x_init,a2y_init],\
-          [x2_final,y2_final,theta2_final,v2x_final,v2y_final,a2x_final,a2y_final]])
+    car1=df_1
+    car2=df_2
+    print(car2)
+    conflict_x = 504067
+    conflict_y = 3566590
+    # car1 = np.array([[x1_init,y1_init,theta1_init,v1x_init,v1y_init,a1x_init,a1y_init],\
+    #       [x1_final,y1_final,theta1_final,v1x_final,v1y_final,a1x_final,a1y_final]])
+    # car2 = np.array([[x2_init,y2_init,theta2_init,v2x_init,v2y_init,a2x_init,a2y_init],\
+    #       [x2_final,y2_final,theta2_final,v2x_final,v2y_final,a2x_final,a2y_final]])
     
     last = 8
     time = np.arange(0,last,0.1)
     n_nodes = int(last*10/2)
-    n_iterations = 1e2
+    n_iterations = 1e0-1
     # for k in range(1):
 
     states = 4
@@ -116,19 +126,19 @@ def main():
     plt.title("vehicles in x and y")
     plt.savefig("xycoordinates.png")
     plt.figure(figsize=(10,5))
-
-    plt.scatter(time,(abs(xcar1-x2_init)+abs(ycar2-y1_init)))
+# 
+    plt.scatter(time,(abs(xcar1-conflict_x)+abs(ycar2-conflict_y)))
     plt.hlines(y=7.5,xmin=time[0],xmax=time[-1],colors="red")
     plt.title("Manhattan Distance between cars and conflict point")
     plt.savefig("distance.png")
-    
-
+    # 
+# 
     # plt.figure()
     # plt.scatter(time,(abs(xcar1-xcar2)))
     # plt.hlines(y=3,xmin=time[0],xmax=time[-1],colors="red")
     # plt.title("Distance in x between cars over time")
     # plt.savefig("xycoordinates.png")
-
+# 
     plt.figure(figsize=(10,5))
     plt.scatter(time,vxcar1)
     plt.scatter(time,vxcar2)
@@ -149,7 +159,7 @@ def main():
     plt.scatter(time,aycar2)
     plt.title("y accel over time")
     plt.savefig("yaccel.png")
-
+# 
 
 if __name__=="__main__":
     main()
