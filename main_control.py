@@ -42,7 +42,8 @@ def main():
     df = pd.read_csv("left_turn_through.csv")
     df["utm x"]=df["utm x"]-504000
     df["utm y"]=df["utm y"]-3566000
-    df_1 = np.array(df[df["path"]=="through"][["utm x","utm y","heading","vx","vy","ax","ay","relative_propotion"]])
+    
+    df_1 = np.array(df[df["path"]=="through"][["utm x","utm y","heading","vx","vy","ax","ay","relative_proportion"]])
     df_2 = np.array(df[df["path"]=="left turning"][["utm x","utm y","heading","vx","vy","ax","ay","relative_proportion"]])
     
     
@@ -79,7 +80,7 @@ def main():
    
     car1=df_1
     car2=df_2
-    print(car2)
+
     conflict_x = 504067
     conflict_y = 3566590
     # car1 = np.array([[x1_init,y1_init,theta1_init,v1x_init,v1y_init,a1x_init,a1y_init],\
@@ -89,8 +90,8 @@ def main():
     
     last = 8
     time = np.arange(0,last,0.1)
-    n_nodes = int(last*10/2)
-    n_iterations = 1e0-1
+    n_nodes = int(last*10/1.5)
+    n_iterations = 1e0
     # for k in range(1):
 
     states = 4
