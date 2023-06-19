@@ -81,8 +81,8 @@ def main():
     car1=df_1
     car2=df_2
 
-    conflict_x = 504067
-    conflict_y = 3566590
+    conflict_x = 69
+    conflict_y = car1[0,1]
     # car1 = np.array([[x1_init,y1_init,theta1_init,v1x_init,v1y_init,a1x_init,a1y_init],\
     #       [x1_final,y1_final,theta1_final,v1x_final,v1y_final,a1x_final,a1y_final]])
     # car2 = np.array([[x2_init,y2_init,theta2_init,v2x_init,v2y_init,a2x_init,a2y_init],\
@@ -91,7 +91,7 @@ def main():
     last = 8
     time = np.arange(0,last,0.1)
     n_nodes = int(last*10/1.5)
-    n_iterations = 1e0
+    n_iterations = 1e2
     # for k in range(1):
 
     states = 4
@@ -128,8 +128,8 @@ def main():
     plt.savefig("xycoordinates.png")
     plt.figure(figsize=(10,5))
 # 
-    plt.scatter(time,(abs(xcar1-conflict_x)+abs(ycar2-conflict_y)))
-    plt.hlines(y=7.5,xmin=time[0],xmax=time[-1],colors="red")
+    plt.scatter(time,(abs(xcar1-xcar2)+abs(ycar2-ycar1)))
+    plt.hlines(y=6.5,xmin=time[0],xmax=time[-1],colors="red")
     plt.title("Manhattan Distance between cars and conflict point")
     plt.savefig("distance.png")
     # 
@@ -140,22 +140,22 @@ def main():
     # plt.title("Distance in x between cars over time")
     # plt.savefig("xycoordinates.png")
 # 
-    plt.figure(figsize=(10,5))
+    plt.figure(figsize=(20,10))
     plt.scatter(time,vxcar1)
     plt.scatter(time,vxcar2)
     plt.title("x speed over time")
     plt.savefig("xspeed.png")
-    plt.figure(figsize=(10,5))
+    plt.figure(figsize=(20,10))
     plt.scatter(time,vycar1)
     plt.scatter(time,vycar2)
     plt.title("y speed over time")
     plt.savefig("yspeed.png")
-    plt.figure(figsize=(10,5))
+    plt.figure(figsize=(20,10))
     plt.scatter(time,axcar1)
     plt.scatter(time,axcar2)
     plt.title("x accel over time")
     plt.savefig("xaccel.png")
-    plt.figure(figsize=(10,5))
+    plt.figure(figsize=(20,10))
     plt.scatter(time,aycar1)
     plt.scatter(time,aycar2)
     plt.title("y accel over time")
