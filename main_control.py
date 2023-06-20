@@ -91,7 +91,7 @@ def main():
     last = 8
     time = np.arange(0,last,0.1)
     n_nodes = int(last*10/1.5)
-    n_iterations = 1e2
+    n_iterations = 1
     # for k in range(1):
 
     states = 4
@@ -160,7 +160,7 @@ def main():
     plt.scatter(time,aycar2)
     plt.title("y accel over time")
     plt.savefig("yaccel.png")
-# 
+    print("here")
 
 if __name__=="__main__":
     main()
