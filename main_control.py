@@ -85,7 +85,7 @@ def main():
     last = 8
     time = np.arange(0,last,0.1)
     n_nodes = int(last*10/1.5)
-    n_iterations = 100
+    n_iterations = 1
     # for k in range(1):
 
     states = 4
@@ -110,11 +110,11 @@ def main():
     aycar2= car2[:,9]
     time_string = np.array([str(np.round(tim,1)) for tim in time ])
     plt.figure(figsize=(10,5))
-    plt.plot(xcar1,ycar1)
+    plt.scatter(xcar1,ycar1)
     for i in range(len(xcar1)):
         if i % 5 ==0:
             plt.text(x=xcar1[i],y=ycar1[i],color="black",s=time_string[i])
-    plt.plot(xcar2,ycar2)
+    plt.scatter(xcar2,ycar2)
     for i in range(len(xcar2)):
         if i % 5 ==0:
             plt.text(x=xcar2[i],y=ycar2[i],color="red",s=time_string[i])

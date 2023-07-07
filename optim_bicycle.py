@@ -421,42 +421,41 @@ class XTFC_veh(PIELM):
         heaviside_r_u = heavy(y_y_1-f_r_u_1,self.k)
         heaviside_r_l =  heavy(f_r_l_1-y_y_1,self.k)
 
-        hy_1 = y_y_1 +(f_r_u_1-hy_1)*(heaviside_r_u)+(f_r_l_1-hy_1)*(heaviside_r_l)
-        dhy_1 = y_dy_1 +(-y_dy_1)*(heaviside_r_u)+(-y_dy_1)*(heaviside_r_l)
-        ddhy_1 = y_ddy_1 +(-y_ddy_1)*(heaviside_r_u)-(y_ddy_1)*(heaviside_r_l)
-
+        
         min_dist =  y_x_2-y_x_1+y_y_2-y_y_1
-        heaviside_min_dist = heavy(self.d*10+5-min_dist,self.k)
+        heaviside_min_dist = heavy(self.d-min_dist,self.k)
         heaviside_r1 = heavy(x_c-y_x_1,self.k)
         heaviside_r2 = heavy(y_y_2-y_c,self.k)
         region1 = heaviside_min_dist*heaviside_r1
         region2 = heaviside_min_dist*heaviside_r2
         
-        indices_1 = np.where(region1>0)[0]
-        indices_2 = np.where(region2>0)[0]
-        
-        # plt.figure()
-        # plt.scatter(hx_1.detach().numpy(),hy_1.detach().numpy())
-        # plt.scatter(hx_1[indices_1].detach().numpy(),hy_1[indices_1].detach().numpy(),c="red")
-        # plt.scatter(hx_2.detach().numpy(),hy_2.detach().numpy())
-        # plt.scatter(hx_2[indices_2].detach().numpy(),hy_2[indices_2].detach().numpy(),c="red")
-        # plt.show()
-        
-        hx_1 = y_x_1 + (-(self.d*10+4.9)+y_x_2+y_y_2-y_y_1-y_x_1)*(region1)
+    
+        hx_1 = y_x_1 + (-(self.d+4.9)+y_x_2+y_y_2-y_y_1-y_x_1)*(region1)
         dhx_1 = y_dx_1 + (y_dx_2+y_dy_2-y_dy_1-y_dx_1)*(region1)
         ddhx_1 = y_ddx_1 + (y_ddx_2+y_ddy_2-y_ddy_1-y_ddx_1)*(region1)
 
-        # hy_1 = y_y_1 + (-self.d*20+y_x_2-y_x_1+y_y_2-y_y_1)*(region1)
-        # dhy_1 = y_dy_1 + (y_dx_2-y_dx_1+y_dy_2-y_dy_1)*(region1)
-        # ddhy_1 = y_ddy_1 + (y_ddx_2-y_ddx_1+y_ddy_2-y_ddy_1)*(region1)
-
-        # hx_2 = y_x_2 + (self.d*3+y_x_1-y_y_2+y_y_1-y_x_2)*(region2)
+        hy_1 = y_y_1 + (-(self.d+4.9)+y_x_2-y_x_1+y_y_2-y_y_1)*(region1)
+        dhy_1 = y_dy_1 + (y_dx_2-y_dx_1+y_dy_2-y_dy_1)*(region1)
+        ddhy_1 = y_ddy_1 + (y_ddx_2-y_ddx_1+y_ddy_2-y_ddy_1)*(region1)
+        
+       
+        # hx_2 = y_x_2 + ((self.d+4.9)+y_x_1-y_y_2+y_y_1-y_x_2)*(region2)
         # dhx_2 = y_dx_2 + (y_dx_1-y_dy_2+y_dy_1-y_dx_2)*(region2)
         # ddhx_2 = y_ddx_2 + (y_ddx_1-y_ddy_2+y_ddy_1-y_ddx_2)*(region2)
       
-        # hy_2 = y_y_2 + (self.d*20+y_x_1-y_x_2+y_y_1-y_y_2)*(region2)
+        # hy_2 = y_y_2 + ((self.d+4.9)+y_x_1-y_x_2+y_y_1-y_y_2)*(region2)
         # dhy_2 = y_dy_2 + (y_dx_1-y_dx_2+y_dy_1-y_dy_2)*(region2)
         # ddhy_2 = y_ddy_2 + (y_dx_1-y_dx_2+y_dy_1-y_dy_2)*(region2)
+
+        y_y_1 = hy_1
+        y_dy_1 = dhy_1
+        y_ddy_1 = ddhy_1
+
+
+        hy_1 = y_y_1 +(f_r_u_1-y_y_1)*(heaviside_r_u)+(f_r_l_1-y_y_1)*(heaviside_r_l)
+        dhy_1 = y_dy_1 +(-y_dy_1)*(heaviside_r_u)+(-y_dy_1)*(heaviside_r_l)
+        ddhy_1 = y_ddy_1 +(-y_ddy_1)*(heaviside_r_u)-(y_ddy_1)*(heaviside_r_l)
+
 
         # plt.figure()
         # plt.scatter(hx_1.detach().numpy(),hy_1.detach().numpy())
@@ -506,17 +505,32 @@ class XTFC_veh(PIELM):
 
         
         lambda_dx_1 = torch.matmul(h,blambda_x_1).reshape(self.x_train.shape)
+        d_lambda_dx_1 = torch.matmul(dh,blambda_x_1).reshape(self.x_train.shape)
         lambda_dy_1 = torch.matmul(h,blambda_y_1).reshape(self.x_train.shape)
+        d_lambda_dy_1 = torch.matmul(dh,blambda_y_1).reshape(self.x_train.shape)
         lambda_ddx_1 = torch.matmul(h,blambda_dx_1).reshape(self.x_train.shape)
+        d_lambda_ddx_1 = torch.matmul(dh,blambda_dx_1).reshape(self.x_train.shape)
         lambda_ddy_1= torch.matmul(h,blambda_dy_1).reshape(self.x_train.shape)
+        d_lambda_ddy_1= torch.matmul(dh,blambda_dy_1).reshape(self.x_train.shape)
         lambda_dtheta_1 = torch.matmul(h,blambda_dtheta_1).reshape(self.x_train.shape)
+        d_lambda_dtheta_1 = torch.matmul(dh,blambda_dtheta_1).reshape(self.x_train.shape)
         lambda_ddelta_1 = torch.matmul(h,blambda_ddelta_1).reshape(self.x_train.shape)
+        d_lambda_ddelta_1 = torch.matmul(dh,blambda_ddelta_1).reshape(self.x_train.shape)
+
+
         lambda_dx_2 = torch.matmul(h,blambda_x_2).reshape(self.x_train.shape)
+        d_lambda_dx_2 = torch.matmul(dh,blambda_x_2).reshape(self.x_train.shape)
         lambda_dy_2 = torch.matmul(h,blambda_y_2).reshape(self.x_train.shape)
+        d_lambda_dy_2 = torch.matmul(dh,blambda_y_2).reshape(self.x_train.shape)
         lambda_ddx_2 = torch.matmul(h,blambda_dx_2).reshape(self.x_train.shape)
+        d_lambda_ddx_2 = torch.matmul(dh,blambda_dx_2).reshape(self.x_train.shape)
         lambda_ddy_2= torch.matmul(h,blambda_dy_2).reshape(self.x_train.shape)
+        d_lambda_ddy_2= torch.matmul(dh,blambda_dy_2).reshape(self.x_train.shape)
         lambda_dtheta_2 = torch.matmul(h,blambda_dtheta_2).reshape(self.x_train.shape)
+        d_lambda_dtheta_2 = torch.matmul(dh,blambda_dtheta_2).reshape(self.x_train.shape)
         lambda_ddelta_2 = torch.matmul(h,blambda_ddelta_2).reshape(self.x_train.shape)
+        d_lambda_ddelta_2 = torch.matmul(dh,blambda_ddelta_2).reshape(self.x_train.shape)
+
 
         #define pre-computations to make your life happier
 
@@ -549,14 +563,15 @@ class XTFC_veh(PIELM):
         l_dtheta_1 = dhtheta_1 - (v_1*tan_delta_1*cos_slip_1/self.l)
         l_ddelta_1 = dhdelta_1+lambda_ddelta_1
         
-        # l_lambda_dx_1 = lambda_x_1 -(4*((hx_1-hx_2)**2-self.d**2)*(hx_1-hx_2))
-        # l_lambda_dy_1 = lambda_y_1 -(4*((hy_1-hy_2)**2-self.d**2)*(hy_1-hy_2))
-        l_lambda_ddx_1 = lambda_ddx_1 
-        l_lambda_dx_1 = lambda_dx_1 -(-lambda_dx_1*cos_theta_1*dhv_x_1-lambda_dy_1*sin_theta_1*dhv_x_1-lambda_dtheta_1*tan_delta_1/self.l*(dhv_x_1*cos_slip_1+dcos_slip_1_x*v_1))
-        l_lambda_ddy_1 = lambda_ddy_1
-        l_lambda_dy_1 = lambda_dy_1 -(-lambda_dx_1*cos_theta_1*dhv_y_1-lambda_dy_1*sin_theta_1*dhv_y_1-lambda_dtheta_1*tan_delta_1/self.l*(dhv_y_1*cos_slip_1+dcos_slip_1_y*v_1))
-        l_lambda_dtheta_1 = lambda_dtheta_1 - ( lambda_dx_1*v_1*sin_theta_1-lambda_dy_1*v_1*cos_theta_1)
-        l_lambda_ddelta_1 = lambda_ddelta_1 - ( -lambda_dtheta_1/self.l*cos_slip_1*v_1*(1/torch.cos(hdelta_1))**2)
+        # l_lambda_dx_1 = d_lambda_dx_1 -(4*((hx_1-hx_2)**2-self.d**2)*(hx_1-hx_2))
+        # l_lambda_dy_1 = d_lambda_dy_1 -(4*((hy_1-hy_2)**2-self.d**2)*(hy_1-hy_2))
+        l_lambda_dx_1 = d_lambda_dx_1
+        l_lambda_dy_1 = d_lambda_dy_1
+        l_lambda_ddx_1 = d_lambda_ddx_1 -(-lambda_dx_1*cos_theta_1*dhv_x_1-lambda_dy_1*sin_theta_1*dhv_x_1-lambda_dtheta_1*tan_delta_1/self.l*(dhv_x_1*cos_slip_1+dcos_slip_1_x*v_1))
+        l_lambda_ddy_1 = d_lambda_ddy_1 -(-lambda_dx_1*cos_theta_1*dhv_y_1-lambda_dy_1*sin_theta_1*dhv_y_1-lambda_dtheta_1*tan_delta_1/self.l*(dhv_y_1*cos_slip_1+dcos_slip_1_y*v_1))
+        l_lambda_dtheta_1 = d_lambda_dtheta_1 - ( lambda_dx_1*v_1*sin_theta_1-lambda_dy_1*v_1*cos_theta_1)
+        l_lambda_ddelta_1 = d_lambda_ddelta_1 - ( -lambda_dtheta_1/self.l*cos_slip_1*v_1*(1/torch.cos(hdelta_1))**2)
+
 
         l_dx_2 = dhx_2 - v_2*cos_theta_1
         l_dy_2 = dhy_2 - v_2*sin_theta_1
@@ -564,16 +579,17 @@ class XTFC_veh(PIELM):
         l_ddy_2 = ddhy_2+lambda_ddy_2
         l_dtheta_2 = dhtheta_2 - (v_2*tan_delta_2*cos_slip_2/self.l)
         l_ddelta_2 = dhdelta_2+lambda_ddelta_2
-        l_lambda_ddx_2 = lambda_ddx_2 
-        l_lambda_ddy_2 = lambda_ddy_2 
-        # l_lambda_dx_2 =lambda_dx_2 +(4*((hx_1-hx_2)**2-self.d**2)*(hx_1-hx_2))
-        # l_lambda_dy_2 =lambda_dy_2 +(4*((hy_1-hy_2)**2-self.d**2)*(hy_1-hy_2))
-        l_lambda_dx_2 =lambda_dx_2 -(-lambda_dx_2*cos_theta_2*dhv_x_2-lambda_dy_2*sin_theta_2*dhv_x_2-lambda_dtheta_2*tan_delta_2/self.l*(dhv_x_2*cos_slip_2+dcos_slip_2_x*v_2))
-        l_lambda_dy_2 =lambda_dy_2 -(-lambda_dx_2*cos_theta_2*dhv_y_2-lambda_dy_2*sin_theta_2*dhv_y_2-lambda_dtheta_2*tan_delta_2/self.l*(dhv_y_2*cos_slip_2+dcos_slip_2_y*v_2))
-        l_lambda_dtheta_2 =lambda_dtheta_2 -(lambda_dx_2*v_2*sin_theta_2-lambda_dy_2*v_2*cos_theta_2)
-        l_lambda_ddelta_2 =lambda_ddelta_2 -(-lambda_dtheta_2/self.l*cos_slip_2*v_2*(1/torch.cos(hdelta_2))**2)
         
-    
+        
+        # l_lambda_dx_2 = d_lambda_dx_2 +(4*((hx_1-hx_2)**2-self.d**2)*(hx_1-hx_2))
+        # l_lambda_dy_2 = d_lambda_dy_2 +(4*((hy_1-hy_2)**2-self.d**2)*(hy_1-hy_2))
+        l_lambda_dx_2 = d_lambda_dx_2
+        l_lambda_dy_2 = d_lambda_dy_2
+        l_lambda_ddx_2 = d_lambda_ddx_2 -(-lambda_dx_2*cos_theta_2*dhv_x_2-lambda_dy_2*sin_theta_2*dhv_x_2-lambda_dtheta_2*tan_delta_2/self.l*(dhv_x_2*cos_slip_2+dcos_slip_2_x*v_2))
+        l_lambda_ddy_2 = d_lambda_ddy_2 -(-lambda_dx_2*cos_theta_2*dhv_y_2-lambda_dy_2*sin_theta_2*dhv_y_2-lambda_dtheta_2*tan_delta_2/self.l*(dhv_y_2*cos_slip_2+dcos_slip_2_y*v_2))
+        l_lambda_dtheta_2 = d_lambda_dtheta_2 -(lambda_dx_2*v_2*sin_theta_2-lambda_dy_2*v_2*cos_theta_2)
+        l_lambda_ddelta_2 = d_lambda_ddelta_2 -(-lambda_dtheta_2/self.l*cos_slip_2*v_2*(1/torch.cos(hdelta_2))**2)
+        
         
         loss= torch.vstack((  
                               l_dx_1,
@@ -596,13 +612,12 @@ class XTFC_veh(PIELM):
                               l_ddelta_2,
                               l_lambda_dx_2,
                               l_lambda_dy_2,
-                               l_lambda_ddx_2,
-                               l_lambda_ddy_2,
+                              l_lambda_ddx_2,
+                              l_lambda_ddy_2,
                               l_lambda_dtheta_2,
                               l_lambda_ddelta_2
                               ))  
-        
-        
+
         return loss
             
     def predict_loss(self,betas):
@@ -852,7 +867,8 @@ class XTFC_veh(PIELM):
         dd_phi7_2 = dd_phis_2[:,6].reshape(len(self.x_train),1)
         dd_phi8_2 = dd_phis_2[:,7].reshape(len(self.x_train),1)
 
-        
+        print(phi1_2.shape)
+        print(init_h_2.shape)
         phi1_h1_2 = torch.matmul(-phi1_2,init_h_2)
         phi1_x2_init_2 = phi1_2*init_x_2
         phi1_y2_init_2 = phi1_2*init_y_2
@@ -990,42 +1006,42 @@ class XTFC_veh(PIELM):
         heaviside_r_u = heavy(y_y_1-f_r_u_1,self.k)
         heaviside_r_l =  heavy(f_r_l_1-y_y_1,self.k)
 
-        hy_1 = y_y_1 +(f_r_u_1-hy_1)*(heaviside_r_u)+(f_r_l_1-hy_1)*(heaviside_r_l)
-        dhy_1 = y_dy_1 +(-y_dy_1)*(heaviside_r_u)+(-y_dy_1)*(heaviside_r_l)
-        ddhy_1 = y_ddy_1 +(-y_ddy_1)*(heaviside_r_u)-(y_ddy_1)*(heaviside_r_l)
-
+       
+        
         min_dist =  y_x_2-y_x_1+y_y_2-y_y_1
-        heaviside_min_dist = heavy(self.d*10+5-min_dist,self.k)
+        heaviside_min_dist = heavy(self.d-min_dist,self.k)
         heaviside_r1 = heavy(x_c-y_x_1,self.k)
         heaviside_r2 = heavy(y_y_2-y_c,self.k)
         region1 = heaviside_min_dist*heaviside_r1
         region2 = heaviside_min_dist*heaviside_r2
         
-        indices_1 = np.where(region1>0)[0]
-        indices_2 = np.where(region2>0)[0]
-        
-        # plt.figure()
-        # plt.scatter(hx_1.detach().numpy(),hy_1.detach().numpy())
-        # plt.scatter(hx_1[indices_1].detach().numpy(),hy_1[indices_1].detach().numpy(),c="red")
-        # plt.scatter(hx_2.detach().numpy(),hy_2.detach().numpy())
-        # plt.scatter(hx_2[indices_2].detach().numpy(),hy_2[indices_2].detach().numpy(),c="red")
-        # plt.show()
-        
-        hx_1 = y_x_1 + (-(self.d*10+4.9)+y_x_2+y_y_2-y_y_1-y_x_1)*(region1)
+    
+        hx_1 = y_x_1 + (-(self.d+4.9)+y_x_2+y_y_2-y_y_1-y_x_1)*(region1)
         dhx_1 = y_dx_1 + (y_dx_2+y_dy_2-y_dy_1-y_dx_1)*(region1)
         ddhx_1 = y_ddx_1 + (y_ddx_2+y_ddy_2-y_ddy_1-y_ddx_1)*(region1)
 
-        # hy_1 = y_y_1 + (-self.d*20+y_x_2-y_x_1+y_y_2-y_y_1)*(region1)
-        # dhy_1 = y_dy_1 + (y_dx_2-y_dx_1+y_dy_2-y_dy_1)*(region1)
-        # ddhy_1 = y_ddy_1 + (y_ddx_2-y_ddx_1+y_ddy_2-y_ddy_1)*(region1)
-
-        # hx_2 = y_x_2 + (self.d*3+y_x_1-y_y_2+y_y_1-y_x_2)*(region2)
+        hy_1 = y_y_1 + (-(self.d+4.9)+y_x_2-y_x_1+y_y_2-y_y_1)*(region1)
+        dhy_1 = y_dy_1 + (y_dx_2-y_dx_1+y_dy_2-y_dy_1)*(region1)
+        ddhy_1 = y_ddy_1 + (y_ddx_2-y_ddx_1+y_ddy_2-y_ddy_1)*(region1)
+        
+       
+        # hx_2 = y_x_2 + ((self.d+4.9)+y_x_1-y_y_2+y_y_1-y_x_2)*(region2)
         # dhx_2 = y_dx_2 + (y_dx_1-y_dy_2+y_dy_1-y_dx_2)*(region2)
         # ddhx_2 = y_ddx_2 + (y_ddx_1-y_ddy_2+y_ddy_1-y_ddx_2)*(region2)
       
-        # hy_2 = y_y_2 + (self.d*20+y_x_1-y_x_2+y_y_1-y_y_2)*(region2)
+        # hy_2 = y_y_2 + ((self.d+4.9)+y_x_1-y_x_2+y_y_1-y_y_2)*(region2)
         # dhy_2 = y_dy_2 + (y_dx_1-y_dx_2+y_dy_1-y_dy_2)*(region2)
         # ddhy_2 = y_ddy_2 + (y_dx_1-y_dx_2+y_dy_1-y_dy_2)*(region2)
+
+        y_y_1 = hy_1
+        y_dy_1 = dhy_1
+        y_ddy_1 = ddhy_1
+
+
+        hy_1 = y_y_1 +(f_r_u_1-y_y_1)*(heaviside_r_u)+(f_r_l_1-y_y_1)*(heaviside_r_l)
+        dhy_1 = y_dy_1 +(-y_dy_1)*(heaviside_r_u)+(-y_dy_1)*(heaviside_r_l)
+        ddhy_1 = y_ddy_1 +(-y_ddy_1)*(heaviside_r_u)-(y_ddy_1)*(heaviside_r_l)
+
 
         # plt.figure()
         # plt.scatter(hx_1.detach().numpy(),hy_1.detach().numpy())
@@ -1034,7 +1050,7 @@ class XTFC_veh(PIELM):
         # # plt.scatter(hx_2[indices_2].detach().numpy(),hy_2[indices_2].detach().numpy(),c="red")
         # plt.show()
         
-
+        
 
         support_function_matrix = np.array([[1,init_time],[1,final_time]])
         coefficients_matrix = torch.tensor(np.linalg.inv(support_function_matrix),dtype=torch.float)
@@ -1075,17 +1091,32 @@ class XTFC_veh(PIELM):
 
         
         lambda_dx_1 = torch.matmul(h,blambda_x_1).reshape(self.x_train.shape)
+        d_lambda_dx_1 = torch.matmul(dh,blambda_x_1).reshape(self.x_train.shape)
         lambda_dy_1 = torch.matmul(h,blambda_y_1).reshape(self.x_train.shape)
+        d_lambda_dy_1 = torch.matmul(dh,blambda_y_1).reshape(self.x_train.shape)
         lambda_ddx_1 = torch.matmul(h,blambda_dx_1).reshape(self.x_train.shape)
+        d_lambda_ddx_1 = torch.matmul(dh,blambda_dx_1).reshape(self.x_train.shape)
         lambda_ddy_1= torch.matmul(h,blambda_dy_1).reshape(self.x_train.shape)
+        d_lambda_ddy_1= torch.matmul(dh,blambda_dy_1).reshape(self.x_train.shape)
         lambda_dtheta_1 = torch.matmul(h,blambda_dtheta_1).reshape(self.x_train.shape)
+        d_lambda_dtheta_1 = torch.matmul(dh,blambda_dtheta_1).reshape(self.x_train.shape)
         lambda_ddelta_1 = torch.matmul(h,blambda_ddelta_1).reshape(self.x_train.shape)
+        d_lambda_ddelta_1 = torch.matmul(dh,blambda_ddelta_1).reshape(self.x_train.shape)
+
+
         lambda_dx_2 = torch.matmul(h,blambda_x_2).reshape(self.x_train.shape)
+        d_lambda_dx_2 = torch.matmul(dh,blambda_x_2).reshape(self.x_train.shape)
         lambda_dy_2 = torch.matmul(h,blambda_y_2).reshape(self.x_train.shape)
+        d_lambda_dy_2 = torch.matmul(dh,blambda_y_2).reshape(self.x_train.shape)
         lambda_ddx_2 = torch.matmul(h,blambda_dx_2).reshape(self.x_train.shape)
+        d_lambda_ddx_2 = torch.matmul(dh,blambda_dx_2).reshape(self.x_train.shape)
         lambda_ddy_2= torch.matmul(h,blambda_dy_2).reshape(self.x_train.shape)
+        d_lambda_ddy_2= torch.matmul(dh,blambda_dy_2).reshape(self.x_train.shape)
         lambda_dtheta_2 = torch.matmul(h,blambda_dtheta_2).reshape(self.x_train.shape)
+        d_lambda_dtheta_2 = torch.matmul(dh,blambda_dtheta_2).reshape(self.x_train.shape)
         lambda_ddelta_2 = torch.matmul(h,blambda_ddelta_2).reshape(self.x_train.shape)
+        d_lambda_ddelta_2 = torch.matmul(dh,blambda_ddelta_2).reshape(self.x_train.shape)
+
 
         #define pre-computations to make your life happier
 
@@ -1118,14 +1149,15 @@ class XTFC_veh(PIELM):
         l_dtheta_1 = dhtheta_1 - (v_1*tan_delta_1*cos_slip_1/self.l)
         l_ddelta_1 = dhdelta_1+lambda_ddelta_1
         
-        # l_lambda_dx_1 = lambda_x_1 -(4*((hx_1-hx_2)**2-self.d**2)*(hx_1-hx_2))
-        # l_lambda_dy_1 = lambda_y_1 -(4*((hy_1-hy_2)**2-self.d**2)*(hy_1-hy_2))
-        l_lambda_ddx_1 = lambda_ddx_1 
-        l_lambda_dx_1 = lambda_dx_1 -(-lambda_dx_1*cos_theta_1*dhv_x_1-lambda_dy_1*sin_theta_1*dhv_x_1-lambda_dtheta_1*tan_delta_1/self.l*(dhv_x_1*cos_slip_1+dcos_slip_1_x*v_1))
-        l_lambda_ddy_1 = lambda_ddy_1
-        l_lambda_dy_1 = lambda_dy_1 -(-lambda_dx_1*cos_theta_1*dhv_y_1-lambda_dy_1*sin_theta_1*dhv_y_1-lambda_dtheta_1*tan_delta_1/self.l*(dhv_y_1*cos_slip_1+dcos_slip_1_y*v_1))
-        l_lambda_dtheta_1 = lambda_dtheta_1 - ( lambda_dx_1*v_1*sin_theta_1-lambda_dy_1*v_1*cos_theta_1)
-        l_lambda_ddelta_1 = lambda_ddelta_1 - ( -lambda_dtheta_1/self.l*cos_slip_1*v_1*(1/torch.cos(hdelta_1))**2)
+        # l_lambda_dx_1 = d_lambda_dx_1 -(4*((hx_1-hx_2)**2-self.d**2)*(hx_1-hx_2))
+        # l_lambda_dy_1 = d_lambda_dy_1 -(4*((hy_1-hy_2)**2-self.d**2)*(hy_1-hy_2))
+        l_lambda_dx_1 = d_lambda_dx_1
+        l_lambda_dy_1 = d_lambda_dy_1
+        l_lambda_ddx_1 = d_lambda_ddx_1 -(-lambda_dx_1*cos_theta_1*dhv_x_1-lambda_dy_1*sin_theta_1*dhv_x_1-lambda_dtheta_1*tan_delta_1/self.l*(dhv_x_1*cos_slip_1+dcos_slip_1_x*v_1))
+        l_lambda_ddy_1 = d_lambda_ddy_1 -(-lambda_dx_1*cos_theta_1*dhv_y_1-lambda_dy_1*sin_theta_1*dhv_y_1-lambda_dtheta_1*tan_delta_1/self.l*(dhv_y_1*cos_slip_1+dcos_slip_1_y*v_1))
+        l_lambda_dtheta_1 = d_lambda_dtheta_1 - ( lambda_dx_1*v_1*sin_theta_1-lambda_dy_1*v_1*cos_theta_1)
+        l_lambda_ddelta_1 = d_lambda_ddelta_1 - ( -lambda_dtheta_1/self.l*cos_slip_1*v_1*(1/torch.cos(hdelta_1))**2)
+
 
         l_dx_2 = dhx_2 - v_2*cos_theta_1
         l_dy_2 = dhy_2 - v_2*sin_theta_1
@@ -1133,16 +1165,17 @@ class XTFC_veh(PIELM):
         l_ddy_2 = ddhy_2+lambda_ddy_2
         l_dtheta_2 = dhtheta_2 - (v_2*tan_delta_2*cos_slip_2/self.l)
         l_ddelta_2 = dhdelta_2+lambda_ddelta_2
-        l_lambda_ddx_2 = lambda_ddx_2 
-        l_lambda_ddy_2 = lambda_ddy_2 
-        # l_lambda_dx_2 =lambda_dx_2 +(4*((hx_1-hx_2)**2-self.d**2)*(hx_1-hx_2))
-        # l_lambda_dy_2 =lambda_dy_2 +(4*((hy_1-hy_2)**2-self.d**2)*(hy_1-hy_2))
-        l_lambda_dx_2 =lambda_dx_2 -(-lambda_dx_2*cos_theta_2*dhv_x_2-lambda_dy_2*sin_theta_2*dhv_x_2-lambda_dtheta_2*tan_delta_2/self.l*(dhv_x_2*cos_slip_2+dcos_slip_2_x*v_2))
-        l_lambda_dy_2 =lambda_dy_2 -(-lambda_dx_2*cos_theta_2*dhv_y_2-lambda_dy_2*sin_theta_2*dhv_y_2-lambda_dtheta_2*tan_delta_2/self.l*(dhv_y_2*cos_slip_2+dcos_slip_2_y*v_2))
-        l_lambda_dtheta_2 =lambda_dtheta_2 -(lambda_dx_2*v_2*sin_theta_2-lambda_dy_2*v_2*cos_theta_2)
-        l_lambda_ddelta_2 =lambda_ddelta_2 -(-lambda_dtheta_2/self.l*cos_slip_2*v_2*(1/torch.cos(hdelta_2))**2)
         
-    
+        
+        # l_lambda_dx_2 = d_lambda_dx_2 +(4*((hx_1-hx_2)**2-self.d**2)*(hx_1-hx_2))
+        # l_lambda_dy_2 = d_lambda_dy_2 +(4*((hy_1-hy_2)**2-self.d**2)*(hy_1-hy_2))
+        l_lambda_dx_2 = d_lambda_dx_2
+        l_lambda_dy_2 = d_lambda_dy_2
+        l_lambda_ddx_2 = d_lambda_ddx_2 -(-lambda_dx_2*cos_theta_2*dhv_x_2-lambda_dy_2*sin_theta_2*dhv_x_2-lambda_dtheta_2*tan_delta_2/self.l*(dhv_x_2*cos_slip_2+dcos_slip_2_x*v_2))
+        l_lambda_ddy_2 = d_lambda_ddy_2 -(-lambda_dx_2*cos_theta_2*dhv_y_2-lambda_dy_2*sin_theta_2*dhv_y_2-lambda_dtheta_2*tan_delta_2/self.l*(dhv_y_2*cos_slip_2+dcos_slip_2_y*v_2))
+        l_lambda_dtheta_2 = d_lambda_dtheta_2 -(lambda_dx_2*v_2*sin_theta_2-lambda_dy_2*v_2*cos_theta_2)
+        l_lambda_ddelta_2 = d_lambda_ddelta_2 -(-lambda_dtheta_2/self.l*cos_slip_2*v_2*(1/torch.cos(hdelta_2))**2)
+        
         
         loss= torch.vstack((  
                               l_dx_1,
@@ -1165,8 +1198,8 @@ class XTFC_veh(PIELM):
                               l_ddelta_2,
                               l_lambda_dx_2,
                               l_lambda_dy_2,
-                               l_lambda_ddx_2,
-                               l_lambda_ddy_2,
+                              l_lambda_ddx_2,
+                              l_lambda_ddy_2,
                               l_lambda_dtheta_2,
                               l_lambda_ddelta_2
                               ))  
@@ -1201,7 +1234,7 @@ class XTFC_veh(PIELM):
         self.y_train_2 = torch.tensor(y_train_2,dtype=torch.float)
        
         self.l = torch.tensor(l,dtype=torch.float)
-        
+        losses =((self.predict_loss(self.betas))**2).reshape(1,80,24) 
         print("number of samples:",len(self.x_train))
         while count < n_iterations:
             
@@ -1216,7 +1249,10 @@ class XTFC_veh(PIELM):
                 delta = torch.matmul(pinv_jac,loss).reshape(self.betas.shape)
                 self.betas -=delta*0.5
                 print("final loss:",(loss**2).mean())
-
+            if count>0:
+                loss_e=(loss**2).reshape(1,80,24) 
+                losses = torch.vstack((losses,loss_e))
+                
             if count %10==0:
                 
                 print("final loss:",(loss**2).mean(),"10 step")
@@ -1224,56 +1260,57 @@ class XTFC_veh(PIELM):
             count +=1
 
         # iters = losses.shape[1]
-        # losses = (losses.reshape(80,20,iters)**2).mean(dim=0)
-        # legends_states = [ "l_dx","l_dy","l_dxx","l_dyy",'l_dtheta','l_ddelta']
-        # legends_costates = [ "l_lambda_ddx","l_lambda_ddy","lambda_dtheta","lambda_ddelta"]
-        # # for j in range(10):
-        # #     if j < 5:
-        # #         print("states")
         
-        # plt.figure()
-        # plt.title("vehicle one losses_states")
-        # plt.plot(losses[0,-50:].detach().numpy())
-        # plt.plot(losses[1,-50:].detach().numpy())
-        # plt.plot(losses[2,-50:].detach().numpy())
-        # plt.plot(losses[3,-50:].detach().numpy())
-        # plt.plot(losses[4,-50:].detach().numpy())
-        # plt.plot(losses[5,-50:].detach().numpy())
-        # plt.legend(legends_states)
+        losses = losses.mean(dim=1)
+        print(losses.mean(dim=0))
+        legends_states = [ "l_dx","l_dy","l_dxx","l_dyy",'l_dtheta','l_ddelta']
+        legends_costates = [ "l_lambda_dx","l_lambda_dy","l_lambda_ddx","l_lambda_ddy","lambda_dtheta","lambda_ddelta"]
+        # for j in range(10):
+        #     if j < 5:
+        #         print("states")
+        
+        plt.figure()
+        plt.title("vehicle one losses_states")
+        plt.plot(losses[0,-10:].detach().numpy())
+        plt.plot(losses[1,-10:].detach().numpy())
+        plt.plot(losses[2,-10:].detach().numpy())
+        plt.plot(losses[3,-10:].detach().numpy())
+        plt.plot(losses[4,-10:].detach().numpy())
+        plt.plot(losses[5,-10:].detach().numpy())
+        plt.legend(legends_states)
 
-        # plt.savefig("losses_states_veh1.png")
-        # plt.figure()
-        # plt.title("vehicle one losses_costates")
-        # plt.plot(losses[6,-50:].detach().numpy())
-        # plt.plot(losses[7,-50:].detach().numpy())
-        # plt.plot(losses[8,-50:].detach().numpy())
-        # plt.plot(losses[9,-50:].detach().numpy())
-        # plt.legend(legends_costates)
-        # plt.savefig("losses_costates_veh1.png")
-        # plt.figure()
-        # plt.title("vehicle two losses_states")
-        # plt.plot(losses[0+10,-50:].detach().numpy())
-        # plt.plot(losses[1+10,-50:].detach().numpy())
-        # plt.plot(losses[2+10,-50:].detach().numpy())
-        # plt.plot(losses[3+10,-50:].detach().numpy())
-        # plt.plot(losses[4+10,-50:].detach().numpy())
-        # plt.plot(losses[5+10,-50:].detach().numpy())
-        # plt.legend(legends_states)
-        # plt.savefig("losses_states_veh2.png")
-        # plt.figure()
-        # plt.title("vehicle two losses_costates")
-        # plt.plot(losses[6+10,-50:].detach().numpy())
-        # plt.plot(losses[7+10,-50:].detach().numpy())
-        # plt.plot(losses[8+10,-50:].detach().numpy())
-        # plt.plot(losses[9+10,-50:].detach().numpy())
-        # plt.legend(legends_costates)
-        # plt.savefig("losses_costates_veh2.png")
-        #     if j > 5:
-        #         print("co-states")
-        #         plt.figure()
-        #         plt.plot(losses[:,j].detach().numpy())
-        #         plt.plot(losses[:,j+10].detach().numpy())
-        #         plt.show()
+        plt.savefig("losses_states_veh1.png")
+        plt.figure()
+        plt.title("vehicle one losses_costates")
+        plt.plot(losses[6,-10:].detach().numpy())
+        plt.plot(losses[7,-10:].detach().numpy())
+        plt.plot(losses[8,-10:].detach().numpy())
+        plt.plot(losses[9,-10:].detach().numpy())
+        plt.plot(losses[10,-10:].detach().numpy())
+        plt.plot(losses[11,-10:].detach().numpy())
+        plt.legend(legends_costates)
+        plt.savefig("losses_costates_veh1.png")
+        plt.figure()
+        plt.title("vehicle two losses_states")
+        plt.plot(losses[0+12,-10:].detach().numpy())
+        plt.plot(losses[1+12,-10:].detach().numpy())
+        plt.plot(losses[2+12,-10:].detach().numpy())
+        plt.plot(losses[3+12,-10:].detach().numpy())
+        plt.plot(losses[4+12,-10:].detach().numpy())
+        plt.plot(losses[5+12,-10:].detach().numpy())
+        plt.legend(legends_states)
+        plt.savefig("losses_states_veh2.png")
+        plt.figure()
+        plt.title("vehicle two losses_costates")
+        plt.plot(losses[6+12,-10:].detach().numpy())
+        plt.plot(losses[7+12,-10:].detach().numpy())
+        plt.plot(losses[8+12,-10:].detach().numpy())
+        plt.plot(losses[9+12,-10:].detach().numpy())
+        plt.plot(losses[10+12,-10:].detach().numpy())
+        plt.plot(losses[11+12,-10:].detach().numpy())
+        plt.legend(legends_costates)
+        plt.savefig("losses_costates_veh2.png")
+            
         
         
     def pred(self):
@@ -1661,54 +1698,53 @@ class XTFC_veh(PIELM):
 
         #Add inequalities for x and y for car 1
 
+        
+        min_dist =  y_x_2-y_x_1+y_y_2-y_y_1
+        heaviside_min_dist = heavy(self.d-min_dist,self.k)
+        heaviside_r1 = heavy(x_c-y_x_1,self.k)
+        heaviside_r2 = heavy(y_y_2-y_c,self.k)
+        region1 = heaviside_min_dist*heaviside_r1
+        region2 = heaviside_min_dist*heaviside_r2
+   
+
+        hx_1 = y_x_1 + (-(self.d+4.9)+y_x_2+y_y_2-y_y_1-y_x_1)*(region1)
+        dhx_1 = y_dx_1 + (y_dx_2+y_dy_2-y_dy_1-y_dx_1)*(region1)
+        ddhx_1 = y_ddx_1 + (y_ddx_2+y_ddy_2-y_ddy_1-y_ddx_1)*(region1)
+
+        hy_1 = y_y_1 + (-(self.d+4.9)+y_x_2-y_x_1+y_y_2-y_y_1)*(region1)
+        dhy_1 = y_dy_1 + (y_dx_2-y_dx_1+y_dy_2-y_dy_1)*(region1)
+        ddhy_1 = y_ddy_1 + (y_ddx_2-y_ddx_1+y_ddy_2-y_ddy_1)*(region1)
+       
+        # hx_2 = y_x_2 + ((self.d+4.9)+y_x_1-y_y_2+y_y_1-y_x_2)*(region2)
+        # dhx_2 = y_dx_2 + (y_dx_1-y_dy_2+y_dy_1-y_dx_2)*(region2)
+        # ddhx_2 = y_ddx_2 + (y_ddx_1-y_ddy_2+y_ddy_1-y_ddx_2)*(region2)
+      
+        # hy_2 = y_y_2 + ((self.d+4.9)+y_x_1-y_x_2+y_y_1-y_y_2)*(region2)
+        # dhy_2 = y_dy_2 + (y_dx_1-y_dx_2+y_dy_1-y_dy_2)*(region2)
+        # ddhy_2 = y_ddy_2 + (y_dx_1-y_dx_2+y_dy_1-y_dy_2)*(region2)
+
         f_r_u_1 = init_y_1+self.d
         f_r_l_1 = init_y_1-self.d
         heaviside_r_u = heavy(y_y_1-f_r_u_1,self.k)
         heaviside_r_l =  heavy(f_r_l_1-y_y_1,self.k)
 
-        hy_1 = y_y_1 +(f_r_u_1-hy_1)*(heaviside_r_u)+(f_r_l_1-hy_1)*(heaviside_r_l)
+        y_y_1 = hy_1
+        y_dy_1 = dhy_1
+        y_ddy_1 = ddhy_1
+
+
+        hy_1 = y_y_1 +(f_r_u_1-y_y_1)*(heaviside_r_u)+(f_r_l_1-y_y_1)*(heaviside_r_l)
         dhy_1 = y_dy_1 +(-y_dy_1)*(heaviside_r_u)+(-y_dy_1)*(heaviside_r_l)
         ddhy_1 = y_ddy_1 +(-y_ddy_1)*(heaviside_r_u)-(y_ddy_1)*(heaviside_r_l)
 
-        min_dist =  y_x_2-y_x_1+y_y_2-y_y_1
-        heaviside_min_dist = heavy(self.d*10+5-min_dist,self.k)
-        heaviside_r1 = heavy(x_c-y_x_1,self.k)
-        heaviside_r2 = heavy(y_y_2-y_c,self.k)
-        region1 = heaviside_min_dist*heaviside_r1
-        region2 = heaviside_min_dist*heaviside_r2
-        
-        indices_1 = np.where(region1>0)[0]
-        indices_2 = np.where(region2>0)[0]
-        
         # plt.figure()
         # plt.scatter(hx_1.detach().numpy(),hy_1.detach().numpy())
         # plt.scatter(hx_1[indices_1].detach().numpy(),hy_1[indices_1].detach().numpy(),c="red")
         # plt.scatter(hx_2.detach().numpy(),hy_2.detach().numpy())
         # plt.scatter(hx_2[indices_2].detach().numpy(),hy_2[indices_2].detach().numpy(),c="red")
         # plt.show()
-        
-        hx_1 = y_x_1 + (-(self.d*10+4.9)+y_x_2+y_y_2-y_y_1-y_x_1)*(region1)
-        dhx_1 = y_dx_1 + (y_dx_2+y_dy_2-y_dy_1-y_dx_1)*(region1)
-        ddhx_1 = y_ddx_1 + (y_ddx_2+y_ddy_2-y_ddy_1-y_ddx_1)*(region1)
 
-        # hy_1 = y_y_1 + (-self.d*20+y_x_2-y_x_1+y_y_2-y_y_1)*(region1)
-        # dhy_1 = y_dy_1 + (y_dx_2-y_dx_1+y_dy_2-y_dy_1)*(region1)
-        # ddhy_1 = y_ddy_1 + (y_ddx_2-y_ddx_1+y_ddy_2-y_ddy_1)*(region1)
-
-        # hx_2 = y_x_2 + (self.d*3+y_x_1-y_y_2+y_y_1-y_x_2)*(region2)
-        # dhx_2 = y_dx_2 + (y_dx_1-y_dy_2+y_dy_1-y_dx_2)*(region2)
-        # ddhx_2 = y_ddx_2 + (y_ddx_1-y_ddy_2+y_ddy_1-y_ddx_2)*(region2)
-      
-        # hy_2 = y_y_2 + (self.d*20+y_x_1-y_x_2+y_y_1-y_y_2)*(region2)
-        # dhy_2 = y_dy_2 + (y_dx_1-y_dx_2+y_dy_1-y_dy_2)*(region2)
-        # ddhy_2 = y_ddy_2 + (y_dx_1-y_dx_2+y_dy_1-y_dy_2)*(region2)
-
-        # plt.figure()
-        # plt.scatter(hx_1.detach().numpy(),hy_1.detach().numpy())
-        # plt.scatter(hx_1[indices_1].detach().numpy(),hy_1[indices_1].detach().numpy(),c="red")
-        # plt.scatter(hx_2.detach().numpy(),hy_2.detach().numpy())
-        # # plt.scatter(hx_2[indices_2].detach().numpy(),hy_2[indices_2].detach().numpy(),c="red")
-        # plt.show()
+       
         
 
 
