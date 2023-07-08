@@ -1,28 +1,26 @@
 function [predX predY predTheta predDelta predLambdaX predLambdaY predLambdaTheta predLambdaDelta dPredX dPredY dPredTheta dPredDelta dPredLambdaX dPredLambdaY dPredLambdaTheta dPredLambdaDelta betas]=predictions(numberStates,numberCostates,file,vehicleMovement,discretizedTime,nodes,W,b,c,t)
 %% Define predictions number of nodes => n, time in seconds => t , discretized time => dT in 0.1 s each point
 syms betas [nodes*(numberStates+numberCostates) 1] 
-
+betas = randn([nodes*(numberStates+numberCostates) 1]);
+k=5;
+pathOffset = 3;
 %% Read tablecollocollocationPointsXcationPointsX
 table = readtable(file);
 rows = table.path == vehicleMovement;
 vehicleTable = table(rows,:); 
 
-x = vehicleTable.utmX;
-y = vehicleTable.utmY;
+x = vehicleTable.utmX - 504000;
+y = vehicleTable.utmY - 3566000;
 dx = vehicleTable.vx;
 dy = vehicleTable.vy;
-ddx = vehicleTable.ax;
-ddy = vehicleTable.ay;
 theta = vehicleTable.heading;
 indices = int32(vehicleTable.relative_proportion*discretizedTime);
 indices(1) = indices(1)+1;
 %% Count collocation points
 countPosX = 0;
 countSpeedX = 0;
-countAccelX = 0;
 countPosY = 0;
 countSpeedY = 0;
-countAccelY = 0;
 countPosTheta = 0;
 for i = 1:size(indices)
     if x(i) ~= 0
@@ -41,30 +39,18 @@ for i = 1:size(indices)
     elseif i == 1
         countSpeedY = countSpeedY + 1;
     end
-    if ddx(i) ~= 0
-        countAccelX = countAccelX + 1;
-    elseif i == 1
-        countAccelX = countAccelX + 1;
-    end
-    if ddy(i) ~= 0
-        countAccelY = countAccelY + 1;
-    elseif i == 1
-        countAccelY = countAccelY + 1;
-    end
     countPosTheta = countPosTheta + 1; 
 end 
 
 %% Define main predictions
 h =  getH(W,b,t);
 dh = getDh(W,b,t);
-dhh = getDdh(W,b,t);
+
 %% Find switching functions for collocation points for X and Y 
 
-collocationPointsX = countPosX + countSpeedX + countAccelX;
-collocationPointsY = countPosY + countSpeedY + countAccelY;
+collocationPointsX = countPosX + countSpeedX;
+collocationPointsY = countPosY + countSpeedY;
 collocationPointsTheta = countPosTheta;
-
-
 
 syms supportT [collocationPointsX collocationPointsX] 
 syms freeSupportFunction [discretizedTime collocationPointsX]
@@ -83,10 +69,6 @@ for i=1:collocationPointsX
         dFreeSupportFunction(j,i) = diff(freeSupportFunction(j,i));
     end
     
-    for j=countPosX+countSpeedX+1:countPosX+countSpeedX+countAccelX
-        supportT(j,i) = diff(supportT(j,i),2);
-    end
-    
 end
 
 for i=1:countPosX
@@ -99,11 +81,7 @@ for i=1:countSpeedX
         supportT(countPosX+i,j) = subs(supportT(countPosX+i,j),t(indices(i)));
     end
 end
-for i=1:countAccelX
-    for j=1:collocationPointsX
-        supportT(countPosX+countSpeedX+i,j) = subs(supportT(countPosX+countSpeedX+i,j),t(indices(i)));
-    end
-end
+
 for i=1:discretizedTime
     for j=1:collocationPointsX
         freeSupportFunction(i,j)=subs(freeSupportFunction(i,j),t(i));
@@ -124,47 +102,76 @@ dPhi = dFreeSupportFunction*coefficientsMatrix;
 
 xSubstractionsPhi = getPosSubstractions(0,W,b,t,indices,phi,countPosX);
 dXSubstractionsPhi = getDPosSubstractions(0,W,b,t,indices,phi,countPosX,countSpeedX);
-ddXSubstractionsPhi = getDDPosSubstractions(0,W,b,t,indices,phi,countPosX,countSpeedX,countAccelX);
 
 xAdditionsPhi = getPosAdditions(0,x,phi,countPosX);
 dXAdditionsPhi = getDPosAdditions(0,dx,phi,countPosX,countSpeedX)/c;
-ddXAdditionsPhi = getDDPosAdditions(0,ddx,phi,countPosX,countSpeedX,countAccelX)/c^2;
+
 
 xSubstractionsDPhi = getPosSubstractions(0,W,b,t,indices,dPhi,countPosX);
 dXSubstractionsDPhi = getDPosSubstractions(0,W,b,t,indices,dPhi,countPosX,countSpeedX);
-ddXSubstractionsDPhi = getDDPosSubstractions(0,W,b,t,indices,dPhi,countPosX,countSpeedX,countAccelX);
 
 xAdditionsDPhi = getPosAdditions(0,x,dPhi,countPosX);
 dXAdditionsDPhi = getDPosAdditions(0,dx,dPhi,countPosX,countSpeedX)/c;
-ddXAdditionsDPhi = getDDPosAdditions(0,ddx,dPhi,countPosX,countSpeedX,countAccelX)/c^2;
-
 
 ySubstractionsPhi = getPosSubstractions(0,W,b,t,indices,phi,countPosY);
 dYSubstractionsPhi = getDPosSubstractions(0,W,b,t,indices,phi,countPosY,countSpeedY);
-ddYSubstractionsPhi = getDDPosSubstractions(0,W,b,t,indices,phi,countPosY,countSpeedY,countAccelY);
 
 yAdditionsPhi = getPosAdditions(0,y,phi,countPosY);
 dYAdditionsPhi = getDPosAdditions(0,dy,phi,countPosY,countSpeedY)/c;
-ddYAdditionsPhi = getDDPosAdditions(0,ddy,phi,countPosY,countSpeedY,countAccelY)/c^2;
 
 ySubstractionsDPhi = getPosSubstractions(0,W,b,t,indices,dPhi,countPosY);
 dYSubstractionsDPhi = getDPosSubstractions(0,W,b,t,indices,dPhi,countPosY,countSpeedY);
-ddYSubstractionsDPhi = getDDPosSubstractions(0,W,b,t,indices,dPhi,countPosY,countSpeedY,countAccelY);
 
 yAdditionsDPhi = getPosAdditions(0,y,dPhi,countPosY);
 dYAdditionsDPhi = getDPosAdditions(0,dy,dPhi,countPosY,countSpeedY)/c;
-ddYAdditionsDPhi = getDDPosAdditions(0,ddy,dPhi,countPosY,countSpeedY,countAccelY)/c^2;
 
-predX = (h-xSubstractionsPhi-dXSubstractionsPhi-ddXSubstractionsPhi)'*betas(1:nodes)+xAdditionsPhi+dXAdditionsPhi+ddXAdditionsPhi;
+predX = (h-xSubstractionsPhi-dXSubstractionsPhi)'*betas(1:nodes)+xAdditionsPhi+dXAdditionsPhi;
+predY = (h-ySubstractionsPhi-dYSubstractionsPhi)'*betas(nodes+1:2*nodes)+yAdditionsPhi+dYAdditionsPhi;
+dPredX = c*(dh-xSubstractionsDPhi-dXSubstractionsDPhi)'*betas(1:nodes)+xAdditionsDPhi+dXAdditionsDPhi;
+dPredY = c*(dh-ySubstractionsDPhi-dYSubstractionsDPhi)'*betas(nodes+1:2*nodes)+yAdditionsDPhi+dYAdditionsDPhi;
+plot(predX,predY)
 
-for i = indices
-    h(i)-xSubstractionsPhi(i)-dXSubstractionsPhi(i)-ddXSubstractionsPhi(i)
+hold on
+legends = ["original"];
+%% Add path constraints
+for i=1:length(x)-1
+    slope = (y(i+1)-y(i))/(x(i+1)-x(i));
+    intercept = y(i)-slope*x(i);
+    if ~isinf(slope)
+        upperBound = slope*predX+intercept+pathOffset-predY;
+        dUpperBound = slope*dPredX-dPredY;
+        heavisideUpperBound = getHeaviside(predY-(slope*predX+intercept+pathOffset),k);
+        lowerBound = slope*predX+intercept-pathOffset-predY;
+        dLowerBound = slope*dPredX-dPredY;
+        heavisideLowerBound = getHeaviside((slope*predX+intercept-pathOffset)-predY,k);
+        xLowerRange = getHeaviside(predX-x(i+1),k);
+        xHigherRange = getHeaviside(x(i)-predX,k);
+        yLowerRange = getHeaviside(predY-y(i+1),k);
+        yHigherRange = getHeaviside(y(i)-predY,k);
+        regionUpper = xLowerRange.*xHigherRange.*heavisideUpperBound.*yLowerRange.*yHigherRange;
+        regionLower = xLowerRange.*xHigherRange.*heavisideLowerBound.*yLowerRange.*yHigherRange;
+        predY = predY+upperBound.*regionUpper+lowerBound.*regionLower;
+        dPredY = dPredY +dUpperBound.*regionUpper+dLowerBound.*regionLower;
+        
+        %predY = predY+upperBound.*regionUpper;
+        %dPredY = dPredY +dUpperBound.*regionUpper;
+        %predY = predY+lowerBound.*regionLower;
+        %dPredY = dPredY+dLowerBound.*regionLower;
+        plot(predX,predY);
+        if i==4
+            [regionUpper regionLower]
+        end
+        legends=[legends string(i)];
+        
+    else
+      
+    end
+
 end
-
-predY = (h-ySubstractionsPhi-dYSubstractionsPhi-ddYSubstractionsPhi)'*betas(nodes+1:2*nodes)+yAdditionsPhi+dYAdditionsPhi+ddYAdditionsPhi;
-dPredX = c*(dh-xSubstractionsDPhi-dXSubstractionsDPhi-ddXSubstractionsDPhi)'*betas(1:nodes)+xAdditionsDPhi+dXAdditionsDPhi+ddXAdditionsDPhi;
-
-dPredY = c*(dh-ySubstractionsDPhi-dYSubstractionsDPhi-ddYSubstractionsDPhi)'*betas(nodes+1:2*nodes)+yAdditionsDPhi+dYAdditionsDPhi+ddYAdditionsDPhi;
+scatter(predX,predY)
+scatter(x,y,c="red");
+hold off
+legend(legends)
 
 %% Find switching functions for theta 
 
@@ -279,5 +286,7 @@ function dDPosAdditions = getDDPosAdditions( dDPosAdditions,dDPos,phiMult,countP
         dDPosAdditions= dDPos(i-countPos-countDPos)*phiMult(:,i) + dDPosAdditions;
     end
 end
-
+function heaviside = getHeaviside(x,k)
+    heaviside = 1/2 +1/2*tanh(k*x);
+end
 
