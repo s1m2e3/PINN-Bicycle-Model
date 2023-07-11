@@ -1,0 +1,40 @@
+function [predXTurning,predYTurning,dPredXTurning,dPredYTurning] = couple(predXThrough,dPredXThrough,predYThrough,dPredYThrough,predXTurning,dPredXTurning,predYTurning,dPredYTurning,distanceThreshold,k,conflictX,conflictY)
+    
+    evalXTurning = double(subs(predXThrough,betasThrough,randn(size(betasThrough))));
+    evalYTurning = double(subs(predYThrough,betasThrough,randn(size(betasThrough))));
+    evalXTurning = double(subs(predXTurning,betasTurning,randn(size(betasTurning))));
+    evalYTurning = double(subs(predYTurning,betasTurning,randn(size(betasTurning))));
+    
+    lowerXBound = evalXTurning-1;
+    upperXBound = evalXTurning+1;
+    lowerYBound = evalYTurning-1;
+    upperYBound = evalYTurning+1;
+
+    lowerPathX = lowerXBoupredXThrough ;
+    lowerPathY = ;
+    heavisideLowerPathX = ;
+    heavisideLowerPathY = ;
+    upperPathX = ;
+    upperPathY = ;
+    heavisideUpperPathX = ;
+    heavisideUpperPathY = ;
+
+    minDist = -predXThrough+predXTurning-predYThrough+predYTurning;
+    heavisideMinDist = getHeaviside(distanceThreshold-minDist,k);
+    region = getHeaviside(predXTurning-conflictX,k);
+    region = region.*heavisideMinDist;
+    
+    yChange = distanceThreshold + predXThrough + predYThrough - predXTurning;
+    dYChange = dPredXThrough + dPredYThrough - dPredXTurning;
+    xChange = distanceThreshold + predXThrough + predYThrough - predYTurning;
+    dXChange = dPredXThrough + dPredYTurning-dPredYTurning;
+
+    predXTurning = predXTurning + (xChange-predXTurning).*region;
+    dPredXTurning = dPredXTurning + (dXChange-dPredXTurning).*region;
+    predYTurning = predYTurning + (yChange-predYTurning).*region;
+    dPredXTurning = dPredYTurning + (dYChange-dPredYTurning).*region;
+
+end
+function heaviside = getHeaviside(x,k)
+    heaviside = 1/2 +1/2*tanh(k*x);
+end
