@@ -1,4 +1,4 @@
-function losses = getLosses(dPredXThrough, dPredYThrough, dPredThetaThrough, dPredDeltaThrough, dPredLambdaXThrough, dPredLambdaYThrough, dPredLambdaThetaThrough, dPredLambdaDeltaThrough, xDotThrough, yDotThrough, thetaDotThrough, deltaDotThrough, lambdaXDotThrough, lambdaYDotThrough, lambdaThetaDotThrough, lambdaDeltaDotThrough,dPredXTurning, dPredYTurning, dPredThetaTurning, dPredDeltaTurning, dPredLambdaXTurning, dPredLambdaYTurning, dPredLambdaThetaTurning, dPredLambdaDeltaTurning, xDotTurning, yDotTurning, thetaDotTurning, deltaDotTurning, lambdaXDotTurning, lambdaYDotTurning, lambdaThetaDotTurning, lambdaDeltaDotTurning)
+function losses = getLosses(dPredXThrough, dPredYThrough, dPredThetaThrough, dPredDeltaThrough, dPredLambdaXThrough, dPredLambdaYThrough, dPredLambdaThetaThrough, dPredLambdaDeltaThrough, xDotThrough, yDotThrough, thetaDotThrough, deltaDotThrough, lambdaXDotThrough, lambdaYDotThrough, lambdaThetaDotThrough, lambdaDeltaDotThrough)
 
 %% Define losses
 lossesXThrough = dPredXThrough - xDotThrough; 

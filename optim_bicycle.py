@@ -430,22 +430,22 @@ class XTFC_veh(PIELM):
         region2 = heaviside_min_dist*heaviside_r2
         
     
-        hx_1 = y_x_1 + (-(self.d+4.9)+y_x_2+y_y_2-y_y_1-y_x_1)*(region1)
-        dhx_1 = y_dx_1 + (y_dx_2+y_dy_2-y_dy_1-y_dx_1)*(region1)
-        ddhx_1 = y_ddx_1 + (y_ddx_2+y_ddy_2-y_ddy_1-y_ddx_1)*(region1)
+        # hx_1 = y_x_1 + (-(self.d+4.9)+y_x_2+y_y_2-y_y_1-y_x_1)*(region1)
+        # dhx_1 = y_dx_1 + (y_dx_2+y_dy_2-y_dy_1-y_dx_1)*(region1)
+        # ddhx_1 = y_ddx_1 + (y_ddx_2+y_ddy_2-y_ddy_1-y_ddx_1)*(region1)
 
-        hy_1 = y_y_1 + (-(self.d+4.9)+y_x_2-y_x_1+y_y_2-y_y_1)*(region1)
-        dhy_1 = y_dy_1 + (y_dx_2-y_dx_1+y_dy_2-y_dy_1)*(region1)
-        ddhy_1 = y_ddy_1 + (y_ddx_2-y_ddx_1+y_ddy_2-y_ddy_1)*(region1)
+        # hy_1 = y_y_1 + (-(self.d+4.9)+y_x_2-y_x_1+y_y_2-y_y_1)*(region1)
+        # dhy_1 = y_dy_1 + (y_dx_2-y_dx_1+y_dy_2-y_dy_1)*(region1)
+        # ddhy_1 = y_ddy_1 + (y_ddx_2-y_ddx_1+y_ddy_2-y_ddy_1)*(region1)
         
        
-        # hx_2 = y_x_2 + ((self.d+4.9)+y_x_1-y_y_2+y_y_1-y_x_2)*(region2)
-        # dhx_2 = y_dx_2 + (y_dx_1-y_dy_2+y_dy_1-y_dx_2)*(region2)
-        # ddhx_2 = y_ddx_2 + (y_ddx_1-y_ddy_2+y_ddy_1-y_ddx_2)*(region2)
+        hx_2 = y_x_2 + ((self.d+4.9)+y_x_1-y_y_2+y_y_1-y_x_2)*(region2)
+        dhx_2 = y_dx_2 + (y_dx_1-y_dy_2+y_dy_1-y_dx_2)*(region2)
+        ddhx_2 = y_ddx_2 + (y_ddx_1-y_ddy_2+y_ddy_1-y_ddx_2)*(region2)
       
-        # hy_2 = y_y_2 + ((self.d+4.9)+y_x_1-y_x_2+y_y_1-y_y_2)*(region2)
-        # dhy_2 = y_dy_2 + (y_dx_1-y_dx_2+y_dy_1-y_dy_2)*(region2)
-        # ddhy_2 = y_ddy_2 + (y_dx_1-y_dx_2+y_dy_1-y_dy_2)*(region2)
+        hy_2 = y_y_2 + ((self.d+4.9)+y_x_1-y_x_2+y_y_1-y_y_2)*(region2)
+        dhy_2 = y_dy_2 + (y_dx_1-y_dx_2+y_dy_1-y_dy_2)*(region2)
+        ddhy_2 = y_ddy_2 + (y_dx_1-y_dx_2+y_dy_1-y_dy_2)*(region2)
 
         y_y_1 = hy_1
         y_dy_1 = dhy_1
@@ -1016,22 +1016,22 @@ class XTFC_veh(PIELM):
         region2 = heaviside_min_dist*heaviside_r2
         
     
-        hx_1 = y_x_1 + (-(self.d+4.9)+y_x_2+y_y_2-y_y_1-y_x_1)*(region1)
-        dhx_1 = y_dx_1 + (y_dx_2+y_dy_2-y_dy_1-y_dx_1)*(region1)
-        ddhx_1 = y_ddx_1 + (y_ddx_2+y_ddy_2-y_ddy_1-y_ddx_1)*(region1)
+        # hx_1 = y_x_1 + (-(self.d+4.9)+y_x_2+y_y_2-y_y_1-y_x_1)*(region1)
+        # dhx_1 = y_dx_1 + (y_dx_2+y_dy_2-y_dy_1-y_dx_1)*(region1)
+        # ddhx_1 = y_ddx_1 + (y_ddx_2+y_ddy_2-y_ddy_1-y_ddx_1)*(region1)
 
-        hy_1 = y_y_1 + (-(self.d+4.9)+y_x_2-y_x_1+y_y_2-y_y_1)*(region1)
-        dhy_1 = y_dy_1 + (y_dx_2-y_dx_1+y_dy_2-y_dy_1)*(region1)
-        ddhy_1 = y_ddy_1 + (y_ddx_2-y_ddx_1+y_ddy_2-y_ddy_1)*(region1)
+        # hy_1 = y_y_1 + (-(self.d+4.9)+y_x_2-y_x_1+y_y_2-y_y_1)*(region1)
+        # dhy_1 = y_dy_1 + (y_dx_2-y_dx_1+y_dy_2-y_dy_1)*(region1)
+        # ddhy_1 = y_ddy_1 + (y_ddx_2-y_ddx_1+y_ddy_2-y_ddy_1)*(region1)
         
        
-        # hx_2 = y_x_2 + ((self.d+4.9)+y_x_1-y_y_2+y_y_1-y_x_2)*(region2)
-        # dhx_2 = y_dx_2 + (y_dx_1-y_dy_2+y_dy_1-y_dx_2)*(region2)
-        # ddhx_2 = y_ddx_2 + (y_ddx_1-y_ddy_2+y_ddy_1-y_ddx_2)*(region2)
+        hx_2 = y_x_2 + ((self.d+4.9)+y_x_1-y_y_2+y_y_1-y_x_2)*(region2)
+        dhx_2 = y_dx_2 + (y_dx_1-y_dy_2+y_dy_1-y_dx_2)*(region2)
+        ddhx_2 = y_ddx_2 + (y_ddx_1-y_ddy_2+y_ddy_1-y_ddx_2)*(region2)
       
-        # hy_2 = y_y_2 + ((self.d+4.9)+y_x_1-y_x_2+y_y_1-y_y_2)*(region2)
-        # dhy_2 = y_dy_2 + (y_dx_1-y_dx_2+y_dy_1-y_dy_2)*(region2)
-        # ddhy_2 = y_ddy_2 + (y_dx_1-y_dx_2+y_dy_1-y_dy_2)*(region2)
+        hy_2 = y_y_2 + ((self.d+4.9)+y_x_1-y_x_2+y_y_1-y_y_2)*(region2)
+        dhy_2 = y_dy_2 + (y_dx_1-y_dx_2+y_dy_1-y_dy_2)*(region2)
+        ddhy_2 = y_ddy_2 + (y_dx_1-y_dx_2+y_dy_1-y_dy_2)*(region2)
 
         y_y_1 = hy_1
         y_dy_1 = dhy_1
@@ -1269,47 +1269,47 @@ class XTFC_veh(PIELM):
         #     if j < 5:
         #         print("states")
         
-        plt.figure()
-        plt.title("vehicle one losses_states")
-        plt.plot(losses[0,-10:].detach().numpy())
-        plt.plot(losses[1,-10:].detach().numpy())
-        plt.plot(losses[2,-10:].detach().numpy())
-        plt.plot(losses[3,-10:].detach().numpy())
-        plt.plot(losses[4,-10:].detach().numpy())
-        plt.plot(losses[5,-10:].detach().numpy())
-        plt.legend(legends_states)
+        # plt.figure()
+        # plt.title("vehicle one losses_states")
+        # plt.plot(losses[0,-10:].detach().numpy())
+        # plt.plot(losses[1,-10:].detach().numpy())
+        # plt.plot(losses[2,-10:].detach().numpy())
+        # plt.plot(losses[3,-10:].detach().numpy())
+        # plt.plot(losses[4,-10:].detach().numpy())
+        # plt.plot(losses[5,-10:].detach().numpy())
+        # plt.legend(legends_states)
 
-        plt.savefig("losses_states_veh1.png")
-        plt.figure()
-        plt.title("vehicle one losses_costates")
-        plt.plot(losses[6,-10:].detach().numpy())
-        plt.plot(losses[7,-10:].detach().numpy())
-        plt.plot(losses[8,-10:].detach().numpy())
-        plt.plot(losses[9,-10:].detach().numpy())
-        plt.plot(losses[10,-10:].detach().numpy())
-        plt.plot(losses[11,-10:].detach().numpy())
-        plt.legend(legends_costates)
-        plt.savefig("losses_costates_veh1.png")
-        plt.figure()
-        plt.title("vehicle two losses_states")
-        plt.plot(losses[0+12,-10:].detach().numpy())
-        plt.plot(losses[1+12,-10:].detach().numpy())
-        plt.plot(losses[2+12,-10:].detach().numpy())
-        plt.plot(losses[3+12,-10:].detach().numpy())
-        plt.plot(losses[4+12,-10:].detach().numpy())
-        plt.plot(losses[5+12,-10:].detach().numpy())
-        plt.legend(legends_states)
-        plt.savefig("losses_states_veh2.png")
-        plt.figure()
-        plt.title("vehicle two losses_costates")
-        plt.plot(losses[6+12,-10:].detach().numpy())
-        plt.plot(losses[7+12,-10:].detach().numpy())
-        plt.plot(losses[8+12,-10:].detach().numpy())
-        plt.plot(losses[9+12,-10:].detach().numpy())
-        plt.plot(losses[10+12,-10:].detach().numpy())
-        plt.plot(losses[11+12,-10:].detach().numpy())
-        plt.legend(legends_costates)
-        plt.savefig("losses_costates_veh2.png")
+        # plt.savefig("losses_states_veh1.png")
+        # plt.figure()
+        # plt.title("vehicle one losses_costates")
+        # plt.plot(losses[6,-10:].detach().numpy())
+        # plt.plot(losses[7,-10:].detach().numpy())
+        # plt.plot(losses[8,-10:].detach().numpy())
+        # plt.plot(losses[9,-10:].detach().numpy())
+        # plt.plot(losses[10,-10:].detach().numpy())
+        # plt.plot(losses[11,-10:].detach().numpy())
+        # plt.legend(legends_costates)
+        # plt.savefig("losses_costates_veh1.png")
+        # plt.figure()
+        # plt.title("vehicle two losses_states")
+        # plt.plot(losses[0+12,-10:].detach().numpy())
+        # plt.plot(losses[1+12,-10:].detach().numpy())
+        # plt.plot(losses[2+12,-10:].detach().numpy())
+        # plt.plot(losses[3+12,-10:].detach().numpy())
+        # plt.plot(losses[4+12,-10:].detach().numpy())
+        # plt.plot(losses[5+12,-10:].detach().numpy())
+        # plt.legend(legends_states)
+        # plt.savefig("losses_states_veh2.png")
+        # plt.figure()
+        # plt.title("vehicle two losses_costates")
+        # plt.plot(losses[6+12,-10:].detach().numpy())
+        # plt.plot(losses[7+12,-10:].detach().numpy())
+        # plt.plot(losses[8+12,-10:].detach().numpy())
+        # plt.plot(losses[9+12,-10:].detach().numpy())
+        # plt.plot(losses[10+12,-10:].detach().numpy())
+        # plt.plot(losses[11+12,-10:].detach().numpy())
+        # plt.legend(legends_costates)
+        # plt.savefig("losses_costates_veh2.png")
             
         
         
@@ -1695,7 +1695,7 @@ class XTFC_veh(PIELM):
         heavy = lambda x,k: 1/2 +1/2*torch.tanh(k*x)
         x_c = 68
         y_c = 590.5
-
+        x_left_conflict = 80
         #Add inequalities for x and y for car 1
 
         
@@ -1703,25 +1703,55 @@ class XTFC_veh(PIELM):
         heaviside_min_dist = heavy(self.d-min_dist,self.k)
         heaviside_r1 = heavy(x_c-y_x_1,self.k)
         heaviside_r2 = heavy(y_y_2-y_c,self.k)
+        heaviside_r3 = heavy(y_x_2-x_c,self.k)
+        heaviside_r4 = heavy(x_left_conflict-y_x_2,self.k)
+
         region1 = heaviside_min_dist*heaviside_r1
         region2 = heaviside_min_dist*heaviside_r2
-   
+        region3 = heaviside_r3*heaviside_r4
+        
 
-        hx_1 = y_x_1 + (-(self.d+4.9)+y_x_2+y_y_2-y_y_1-y_x_1)*(region1)
-        dhx_1 = y_dx_1 + (y_dx_2+y_dy_2-y_dy_1-y_dx_1)*(region1)
-        ddhx_1 = y_ddx_1 + (y_ddx_2+y_ddy_2-y_ddy_1-y_ddx_1)*(region1)
+        m = (r2_y_2-r1_y_2)/(r2_x_2-r1_x_2)
+        intercept = r1_y_2-m*r1_x_2
+        # hx_1 = y_x_1 + (-(self.d+4.9)+y_x_2+y_y_2-y_y_1-y_x_1)*(region1)
+        # dhx_1 = y_dx_1 + (y_dx_2+y_dy_2-y_dy_1-y_dx_1)*(region1)
+        # ddhx_1 = y_ddx_1 + (y_ddx_2+y_ddy_2-y_ddy_1-y_ddx_1)*(region1)
 
-        hy_1 = y_y_1 + (-(self.d+4.9)+y_x_2-y_x_1+y_y_2-y_y_1)*(region1)
-        dhy_1 = y_dy_1 + (y_dx_2-y_dx_1+y_dy_2-y_dy_1)*(region1)
-        ddhy_1 = y_ddy_1 + (y_ddx_2-y_ddx_1+y_ddy_2-y_ddy_1)*(region1)
+        # hy_1 = y_y_1 + (-(self.d+4.9)+y_x_2-y_x_1+y_y_2-y_y_1)*(region1)
+        # dhy_1 = y_dy_1 + (y_dx_2-y_dx_1+y_dy_2-y_dy_1)*(region1)
+        # ddhy_1 = y_ddy_1 + (y_ddx_2-y_ddx_1+y_ddy_2-y_ddy_1)*(region1)
        
-        # hx_2 = y_x_2 + ((self.d+4.9)+y_x_1-y_y_2+y_y_1-y_x_2)*(region2)
-        # dhx_2 = y_dx_2 + (y_dx_1-y_dy_2+y_dy_1-y_dx_2)*(region2)
-        # ddhx_2 = y_ddx_2 + (y_ddx_1-y_ddy_2+y_ddy_1-y_ddx_2)*(region2)
+       
+
+        path_x = hy_2/m-intercept
+        dpath_x = dhy_2/m
+        ddpath_x = ddhy_2/2
+        path_y = hx_2*m+intercept
+        dpath_y = dhx_2*m
+        ddpath_y = ddhx_2*m
+
+        
+        hx_2 = hx_2 + (path_x-hx_2)*region3
+        dhx_2 = dhx_2 + (dpath_x-dhx_2)*(region3)
+        ddhx_2 = ddhx_2 + (ddpath_x-ddhx_2)*(region3)
       
-        # hy_2 = y_y_2 + ((self.d+4.9)+y_x_1-y_x_2+y_y_1-y_y_2)*(region2)
-        # dhy_2 = y_dy_2 + (y_dx_1-y_dx_2+y_dy_1-y_dy_2)*(region2)
-        # ddhy_2 = y_ddy_2 + (y_dx_1-y_dx_2+y_dy_1-y_dy_2)*(region2)
+        hy_2 = hy_2 + (path_y-hy_2)*region3
+        dhy_2 = dhy_2 + (dpath_y-dhy_2)*(region3)
+        ddhy_2 = ddhy_2 + (ddpath_y-ddhy_2)*(region3)
+
+        plt.figure()
+        plt.scatter(hx_2.detach().numpy(),hy_2.detach().numpy())
+        # plt.plot(hx_2.detach().numpy(),path_y.detach().numpy())
+        plt.show()
+
+        hx_2 = y_x_2 + ((self.d+4.9)+y_x_1-y_y_2+y_y_1-y_x_2)*(region2)
+        dhx_2 = y_dx_2 + (y_dx_1-y_dy_2+y_dy_1-y_dx_2)*(region2)
+        ddhx_2 = y_ddx_2 + (y_ddx_1-y_ddy_2+y_ddy_1-y_ddx_2)*(region2)
+      
+        hy_2 = y_y_2 + ((self.d+4.9)+y_x_1-y_x_2+y_y_1-y_y_2)*(region2)
+        dhy_2 = y_dy_2 + (y_dx_1-y_dx_2+y_dy_1-y_dy_2)*(region2)
+        ddhy_2 = y_ddy_2 + (y_dx_1-y_dx_2+y_dy_1-y_dy_2)*(region2)
+
 
         f_r_u_1 = init_y_1+self.d
         f_r_l_1 = init_y_1-self.d
@@ -1737,12 +1767,12 @@ class XTFC_veh(PIELM):
         dhy_1 = y_dy_1 +(-y_dy_1)*(heaviside_r_u)+(-y_dy_1)*(heaviside_r_l)
         ddhy_1 = y_ddy_1 +(-y_ddy_1)*(heaviside_r_u)-(y_ddy_1)*(heaviside_r_l)
 
-        # plt.figure()
-        # plt.scatter(hx_1.detach().numpy(),hy_1.detach().numpy())
+        plt.figure()
+        plt.scatter(hx_1.detach().numpy(),hy_1.detach().numpy())
         # plt.scatter(hx_1[indices_1].detach().numpy(),hy_1[indices_1].detach().numpy(),c="red")
-        # plt.scatter(hx_2.detach().numpy(),hy_2.detach().numpy())
+        plt.scatter(hx_2.detach().numpy(),hy_2.detach().numpy())
         # plt.scatter(hx_2[indices_2].detach().numpy(),hy_2[indices_2].detach().numpy(),c="red")
-        # plt.show()
+        plt.show()
 
        
         

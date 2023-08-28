@@ -1,8 +1,13 @@
-function [predX predY predTheta predDelta predLambdaX predLambdaY predLambdaTheta predLambdaDelta dPredX dPredY dPredTheta dPredDelta dPredLambdaX dPredLambdaY dPredLambdaTheta dPredLambdaDelta betas]=predictions(numberStates,numberCostates,file,vehicleMovement,discretizedTime,nodes,W,b,c,t)
+function [predX predY predTheta predDelta predLambdaX predLambdaY predLambdaTheta predLambdaDelta dPredX dPredY dPredTheta dPredDelta dPredLambdaX dPredLambdaY dPredLambdaTheta dPredLambdaDelta betas]=predictions(numberStates,numberCostates,file,vehicleMovement,discretizedTime,nodes,W,b,c,t,k)
 %% Define predictions number of nodes => n, time in seconds => t , discretized time => dT in 0.1 s each point
 syms betas [nodes*(numberStates+numberCostates) 1] 
+<<<<<<< HEAD
 betas = randn([nodes*(numberStates+numberCostates) 1]);
 k=5;
+=======
+% betas = randn([nodes*(numberStates+numberCostates) 1]);
+
+>>>>>>> 55c0103899d7618e8d1a35dadcad6ca6f763bad3
 pathOffset = 0.2;
 %% Read tablecollocollocationPointsXcationPointsX
 table = readtable(file);
@@ -129,8 +134,8 @@ predX = (h-xSubstractionsPhi-dXSubstractionsPhi)'*betas(1:nodes)+xAdditionsPhi+d
 predY = (h-ySubstractionsPhi-dYSubstractionsPhi)'*betas(nodes+1:2*nodes)+yAdditionsPhi+dYAdditionsPhi;
 dPredX = c*(dh-xSubstractionsDPhi-dXSubstractionsDPhi)'*betas(1:nodes)+xAdditionsDPhi+dXAdditionsDPhi;
 dPredY = c*(dh-ySubstractionsDPhi-dYSubstractionsDPhi)'*betas(nodes+1:2*nodes)+yAdditionsDPhi+dYAdditionsDPhi;
-plot(predX,predY)
 
+<<<<<<< HEAD
 hold on
 legends = ["original"];
 %% Add path constraints
@@ -165,12 +170,37 @@ for i=1:length(x)-1
     else
       
     end
+=======
+% %% Add path constraints
+% for i=1:length(x)-1
+%     slope = (y(i+1)-y(i))/(x(i+1)-x(i));
+%     intercept = y(i)-slope*x(i);
+%     if ~isinf(slope)
+%         upperBound = slope*predX+intercept+pathOffset-predY;
+%         dUpperBound = slope*dPredX-dPredY;
+%         heavisideUpperBound = getHeaviside(predY-(slope*predX+intercept+pathOffset),k);
+%         lowerBound = slope*predX+intercept-pathOffset-predY;
+%         dLowerBound = slope*dPredX-dPredY;
+%         heavisideLowerBound = getHeaviside((slope*predX+intercept-pathOffset)-predY,k);
+%         
+%         if x(i+1)<x(i)
+%             xLowerRange = getHeaviside(x(i)-predX,k);
+%             xHigherRange = getHeaviside(predX-x(i+1),k);
+%             regionUpper = xLowerRange.*xHigherRange;
+%             predY = predY+upperBound.*regionUpper;
+%             dPredY = dPredY +dUpperBound.*regionUpper;
+%             
+%         end
+%         
+%      
+%         
+%     else
+%       
+%     end
+% 
+% end
+>>>>>>> 55c0103899d7618e8d1a35dadcad6ca6f763bad3
 
-end
-scatter(predX,predY)
-scatter(x,y,c="red");
-hold off
-legend(legends)
 
 %% Find switching functions for theta 
 

@@ -1,0 +1,2 @@
+x0 = randn((80,1));
+lsqnonlin(losses,x0);

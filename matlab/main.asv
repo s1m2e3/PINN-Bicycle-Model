@@ -3,15 +3,15 @@ m = 1500;
 cL = 4.9;
 tS = 20;
 %% Define total number of seconds, number of states and co-states
-time = 10;
+time = 2;
 numberStates = 4;
 numberCostates = 4;
 
 %% Get predictions and add constraints
 filename = "../left_turn_through.csv";
 discretizedTime = time*10;
-nodes = floor(discretizedTime/2);
-
+nodes = 10;
+% nodes = 5 ;
 t = linspace(0,time,discretizedTime);
 c = (1+1)/(t(end)-t(1));
 t = -1+c*(t-t(1));
@@ -28,7 +28,7 @@ W = randn([nodes 1]);
 b = randn([nodes 1]);
 [predXTurning, predYTurning, predThetaTurning, predDeltaTurning, predLambdaXTurning, predLambdaYTurning, predLambdaThetaTurning, predLambdaDeltaTurning, dPredXTurning, dPredYTurning, dPredThetaTurning, dPredDeltaTurning, dPredLambdaXTurning, dPredLambdaYTurning, dPredLambdaThetaTurning, dPredLambdaDeltaTurning,betasTurning]=predictions(numberStates,numberCostates,filename,vehicleMovement,discretizedTime,nodes,W,b,c,t,k);
 %% Couple and Test numerically
-% [predXTurning,predYTurning,dPredXTurning,dPredYTurning] = couple(predXThrough,dPredXThrough,predYThrough,dPredYThrough,predXTurning,dPredXTurning,predYTurning,dPredYTurning,distanceThreshold,k,conflictX,conflictY);
+[predXTurning,predYTurning,dPredXTurning,dPredYTurning] = couple(predXThrough,dPredXThrough,predYThrough,dPredYThrough,predXTurning,dPredXTurning,predYTurning,dPredYTurning,distanceThreshold,k,conflictX,conflictY);
 
 %% Define Hamiltonian with respect to co-states and 
 % syms theta delta lambdaX lambdaY lambdaTheta lambdaDelta;
@@ -38,8 +38,8 @@ b = randn([nodes 1]);
 % PhiTurning = -predLambdaDeltaTurning;
 
 %% get differential equations
-syms lambdaX lambdaY lambdaTheta lambdaDelta theta delta x y m cL
-V = -(+lambdaX*cos(theta)+lambdaY*sin(theta)+lambdaTheta/cL*tan(delta))/(m); 
+syms lambdaX lambdaY lambdaTheta lambdaDelta theta delta x y
+V = -(-2*tS+lambdaX*cos(theta)+lambdaY*sin(theta)+lambdaTheta/cL*tan(delta))/(m+2); 
 Phi=  - lambdaDelta;
 H =  1/2*Phi.^2 + 1/2*m*V.^2+lambdaX.*V.*cos(theta)+lambdaY*V*sin(theta)+lambdaTheta/cL.*V.*tan(delta) ...
 +lambdaDelta*Phi;
@@ -76,21 +76,22 @@ betas = cat(1,betasThrough,betasTurning);
 %% Define Jacobian 
 storedJacobian = jacobian(losses,betas);
 %% Create matlabFunctions
-% matlabFunction(losses,"File","losses");
-% matlabFunction(storedJacobian,"File","jacobians");
+matlabFunction(losses,"File","losses");
+matlabFunction(storedJacobian,"File","jacobians");
 
-%% Define as function h
-finalBetas = randn(size(betas));
-
-for i =1:100
-    evalLosses = double(subs(losses,betas,finalBetas));
-    evalJacobian = double(subs(storedJacobian,betas,finalBetas));
-    delta=pinv(evalJacobian)*evalLosses;
-    finalBetas= finalBetas- 0.1*delta;
-    mean(evalLosses.^2)
-%     evalLosses = double(subs(lossesTurning,betasTurning,finalBetasTurning));
-%     evalJacobian = double(subs(storedJacobianTurning,betasTurning,finalBetasTurning));
+% %% Define as function h
+% finalBetasTurning = randn(size(betasTurning));
+% finalBetasThrough = randn(size(betasThrough));
+% for i =1:100
+%     evalLosses = double(subs(lossesThrough,betasThrough,finalBetasThrough));
+%     evalJacobian = double(subs(storedJacobianThrough,betasThrough,finalBetasThrough));
 %     delta=pinv(evalJacobian)*evalLosses;
-%     finalBetasTurning = finalBetasTurning - 0.1*delta;
+%     finalBetasThrough = finalBetasThrough - 0.1*delta;
 %     mean(evalLosses.^2)
-end
+% %     evalLosses = double(subs(lossesTurning,betasTurning,finalBetasTurning));
+% %     evalJacobian = double(subs(storedJacobianTurning,betasTurning,finalBetasTurning));
+% %     delta=pinv(evalJacobian)*evalLosses;
+% %     finalBetasTurning = finalBetasTurning - 0.1*delta;
+% %     mean(evalLosses.^2)
+%     
+% end
