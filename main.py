@@ -69,7 +69,8 @@ def main():
 
     ##compute curvature radius
     df = get_curvature(df)
-
+    df["x"]=df["x"]-df['x'].min()
+    df["y"]=df["y"]-df["y"].min()
     ## neural networks with only time:
 
     n_nodes = 512
@@ -88,7 +89,7 @@ def main():
     output_size = 4
 
     pielm_x = np.array((test_df["timestamp_posix"]))
-    pielm_y = np.array((test_df[["x","y","heading"]]))
+    pielm_y = np.array((test_df[["x","y","heading","steering_angle"]]))
     # l = np.array((test_df["length"]-test_df["length"].min())/(test_df["length"].max()-test_df["length"].min()))
     # rho = np.array((test_df["steering_angle_rate"]-test_df["steering_angle_rate"].min())/\
     #     (test_df["steering_angle_rate"].max()-test_df["steering_angle_rate"].min()))
@@ -114,63 +115,67 @@ def main():
     speed_x= speed_x[:stop]
     speed_y= speed_y[:stop]
     heading_ratio = heading_ratio[:stop]
+    lambda_= 0.5
 
-    # pielm= PIELM(n_nodes,input_size,output_size,low_w=-1,high_w=1,low_b=-1,high_b=1,activation_function="tanh",length=10)
-    # pielm.train(accuracy, n_iterations,pielm_x_train,pielm_y_train,l_train,rho_train,steering_angle_train,slip_angle_train,0.5)
-    # y_pred = pielm.pred(pielm_x_train).cpu().detach().numpy().T
+    pielm= PIELM(n_nodes,input_size,output_size,low_w=-1,high_w=1,low_b=-1,high_b=1,activation_function="tanh",length=10)
+    pielm.train(accuracy, n_iterations,pielm_x_train,pielm_y_train,l_train,rho_train,steering_angle_train,slip_angle_train,speed_x,speed_y,heading_ratio,lambda_)
+    y_pred = pielm.pred(pielm_x_train).cpu().detach().numpy().T
     
-    # # plt.figure()
-    # # plt.scatter(pielm_y_train[:,0],pielm_y_train[:,1])
-    # # plt.scatter(y_pred[:,0],y_pred[:,1])
-    # # plt.show()
     # plt.figure()
-    # plt.plot(pielm_y_train[:,0])
-    # plt.plot(y_pred[:,0])
+    # plt.scatter(pielm_y_train[:,0],pielm_y_train[:,1])
+    # plt.scatter(y_pred[:,0],y_pred[:,1])
     # plt.show()
-    # plt.figure()
-    # plt.plot(pielm_y_train[:,1])
-    # plt.plot(y_pred[:,1])
-    # plt.show()
-    # plt.figure()
-    # plt.plot(pielm_y_train[:,2])
-    # plt.plot(y_pred[:,2])
-    # plt.show()
-    # plt.figure()
-    
-    y_pred={}
-    for i in [1]:
-        y_pred[i]={}
-        for j in [1]:
-            lambda_ = 1-((j+4)/100)
-            length= 150*i
-            xtfc= XTFC(n_nodes,input_size,output_size,length=length,low_w=-5,high_w=5,low_b=-5,high_b=5,activation_function="tanh")
-            xtfc.train(accuracy, n_iterations,pielm_x_train,pielm_y_train,l_train,rho_train,steering_angle_train,slip_angle_train,speed_x,speed_y,heading_ratio,lambda_)
-            y_pred[i][j] = xtfc.pred(pielm_x_train).cpu().detach().numpy().T
-    plt.figure()
-    plt.scatter(pielm_y_train[:,0],pielm_y_train[:,1])
-    plt.scatter(y_pred[1][1][:,0],y_pred[1][1][:,1])
-    plt.axvline(x=pielm_y_train[-length,0])
-    plt.axhline(y=pielm_y_train[-length,1])
-    plt.show()
     plt.figure()
     plt.plot(pielm_y_train[:,0])
-    plt.plot(y_pred[1][1][:,0])
-    plt.axvline(x=len(pielm_x_train)-length)
+    plt.plot(y_pred[:,0])
     plt.show()
     plt.figure()
     plt.plot(pielm_y_train[:,1])
-    plt.plot(y_pred[1][1][:,1])
-    plt.axvline(x=len(pielm_x_train)-length)
+    plt.plot(y_pred[:,1])
     plt.show()
     plt.figure()
     plt.plot(pielm_y_train[:,2])
-    #plt.plot(y_pred[1][1][:,2])
+    plt.plot(y_pred[:,2])
     plt.show()
     plt.figure()
-    # plt.plot(pielm_y_train[:,2])
-    plt.plot(y_pred[1][1][:,2])
-    plt.show()
+    plt.plot(pielm_y_train[:,3])
+    plt.plot(y_pred[:,3])
+    
+    
+    # y_pred={}
+    # for i in [1]:
+    #     y_pred[i]={}
+    #     for j in [1]:
+    #         lambda_ = 1-((j+4)/100)
+    #         length= 150*i
+    #         xtfc= XTFC(n_nodes,input_size,output_size,length=length,low_w=-1,high_w=1,low_b=-1,high_b=1,activation_function="tanh")
+    #         xtfc.train(accuracy, n_iterations,pielm_x_train,pielm_y_train,l_train,rho_train,steering_angle_train,slip_angle_train,speed_x,speed_y,heading_ratio,lambda_)
+    #         y_pred[i][j] = xtfc.pred(pielm_x_train).cpu().detach().numpy().T
+    # plt.figure()
+    # plt.scatter(pielm_y_train[:,0],pielm_y_train[:,1])
+    # plt.scatter(y_pred[1][1][:,0],y_pred[1][1][:,1])
+    # plt.axvline(x=pielm_y_train[-length,0])
+    # plt.axhline(y=pielm_y_train[-length,1])
+    # plt.show()
+    # plt.figure()
+    # plt.plot(pielm_y_train[:,0])
+    # plt.plot(y_pred[1][1][:,0])
     # plt.axvline(x=len(pielm_x_train)-length)
+    # plt.show()
+    # plt.figure()
+    # plt.plot(pielm_y_train[:,1])
+    # plt.plot(y_pred[1][1][:,1])
+    # plt.axvline(x=len(pielm_x_train)-length)
+    # plt.show()
+    # plt.figure()
+    # plt.plot(pielm_y_train[:,2])
+    # #plt.plot(y_pred[1][1][:,2])
+    # plt.show()
+    # plt.figure()
+    # # plt.plot(pielm_y_train[:,2])
+    # plt.plot(y_pred[1][1][:,2])
+    # plt.show()
+    # # plt.axvline(x=len(pielm_x_train)-length)
     
     
     # for j in range[0]:
