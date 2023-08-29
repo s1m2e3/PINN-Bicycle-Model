@@ -12,12 +12,14 @@ import seaborn as sns
 #from process import * 
 from datetime import datetime
 from model import *
-
+from scipy.interpolate import interp1d
 
 def get_curvature(data):
     data["slip_angle"] = 0
     data["curvature_radius"]=0
     data["heading_ratio"]=0
+    data["steering_angle_rate"]=0
+    
 
     ## compute bisector
     for id in data["temporaryId"].unique():
@@ -34,16 +36,25 @@ def get_curvature(data):
                     subdf["slip_angle"].loc[index] = np.arctan(subdf["speed_y"].loc[index]/subdf["speed_x"].loc[index])
                     subdf["steering_angle"].loc[index] = np.arctan(subdf["length"].loc[index]*np.tan(subdf["slip_angle"].loc[index]))
                     subdf["curvature_radius"].loc[index]= subdf["length"].loc[index]/(np.tan(subdf["steering_angle"].loc[index])*np.cos(subdf["slip_angle"].loc[index]))
+                    if index >= (np.where(subdf["heading"].diff()>1)[0][0]):
+                        subdf["heading"].loc[index]=subdf["heading"].loc[index]-np.pi*2
+                        man = True
+                    if index>1:
+                        if subdf["curvature_radius"].loc[index]-subdf["curvature_radius"].loc[index-1]>10:                        
+                            subdf["curvature_radius"].loc[index]=subdf["curvature_radius"].loc[index-1]
                     subdf["heading_ratio"].loc[index] = subdf["speed"].loc[index]/subdf["curvature_radius"].loc[index]
-
+            if man==True:
+                subdf["heading"].loc[index]=subdf["heading"].loc[index]-np.pi*2
+            # subdf["heading_ratio"]=subdf["heading"].diff()
+            subdf["steering_angle_rate"]=subdf["steering_angle"].diff()
             indices = subdf.index
             data.loc[indices]=subdf
+            
     return data
 
 
 def conver_to_lstm_data(data,sequence_length):
     data =np.array(data)
-    
     new_shape = [data.shape[0]-sequence_length]
     #data_shape = list(data.shape)
     
@@ -64,16 +75,30 @@ def main():
     df = df[df["sub_group"]=="insideIntersectionBox1"].reset_index(drop=True)
     print(df["sub_group"].unique())
     df["heading"] = df["heading"]*np.pi/180
-    test_df = df
     n_iterations = int(1e2)
-    
-
     ##compute curvature radius
     df = get_curvature(df)
     df["x"]=df["x"]-df['x'].min()
     df["y"]=df["y"]-df["y"].min()
-    ## neural networks with only time:
-
+    numberPoints = len(df)
+    newNumberPoints = numberPoints*2
+    newDf={}
+    newTime=np.linspace(df["timestamp_posix"].iloc[0],df["timestamp_posix"].iloc[-1],newNumberPoints)
+    newDf["timestamp_posix"]=newTime
+    for col in ["heading","x",'y','speed_x',"speed_y","steering_angle","steering_angle_rate","slip_angle","heading_ratio","length"]:
+        f = interp1d(df['timestamp_posix'],df[col],kind="linear")
+        newDf[col] = f(newTime)
+        # plt.figure()
+        # plt.title(col)
+        # plt.plot(df["timestamp_posix"],df[col])
+        # plt.scatter(newDf["timestamp_posix"],newDf[col],color="red")
+        # plt.show()
+          
+    # ## neural networks with only time:
+    newDf = pd.DataFrame.from_dict(newDf)
+    # # print(newDf.head())
+    test_df = newDf
+    # test_df = df
     n_nodes = 80
     input_sequence_length = 50
     output_sequence_length = 10
@@ -117,77 +142,71 @@ def main():
     # speed_x= speed_x[:stop]
     # speed_y= speed_y[:stop]
     # heading_ratio = heading_ratio[:stop]
-    lambda_= 0.95
-    data = {}
-    for i in [0,1,2]:
-        if i == 2:
-            control = True
-            physic = True
-        elif i == 1:
-            control = True
-            physic = False
-        elif i == 0:
-            control = False
-            physic = False
-        pielm= PIELM(n_nodes,input_size,output_size,length,controls=control,physics=physic,low_w=-1,high_w=1,low_b=-1,high_b=1,activation_function="tanh")
-        pielm.train(accuracy, n_iterations,pielm_x,pielm_y,l,rho,steering_angle,slip_angle,speed_x,speed_y,heading_ratio,lambda_)
-        y_pred = pielm.pred(pielm_x).cpu().detach().numpy().T
-        data[i]=y_pred
-    labels = ["Ground Truth Data","States Data, Derivatives Data and no Diff. Eq.","States Data and Derivatives Data but no Diff. Eq.", "States and Derivatives Data, and Diff. Eq."]
-    states = ["X Coordinate Prediction","Y Coordinate Prediction","Heading Angle Prediction","Steering Angle Prediction"]
-    markers = ["o","v","s"]
-    colors = ["orange",'green','red']
-    plt.figure()
-    plt.plot(pielm_y[:,0],pielm_y[:,1])
-    for i in [0,1,2]:
+    lambda_= 0.9
+    # data = {}
+    # for i in [0,1,2]:
+    #     if i == 2:
+    #         control = True
+    #         physic = True
+    #     elif i == 1:
+    #         control = True
+    #         physic = False
+    #     elif i == 0:
+    #         control = False
+    #         physic = False
+    #     pielm= PIELM(n_nodes,input_size,output_size,length,controls=control,physics=physic,low_w=-1,high_w=1,low_b=-1,high_b=1,activation_function="tanh")
+    #     pielm.train(accuracy, n_iterations,pielm_x,pielm_y,l,rho,steering_angle,slip_angle,speed_x,speed_y,heading_ratio,lambda_)
+    #     y_pred = pielm.pred(pielm_x).cpu().detach().numpy().T
+    #     data[i]=y_pred
+    # labels = ["Ground Truth Data","States Data, No Derivatives Data and no Diff. Eq.","States Data and Derivatives Data but no Diff. Eq.", "States and Derivatives Data, and Diff. Eq."]
+    # states = ["X Coordinate Prediction","Y Coordinate Prediction","Heading Angle Prediction","Steering Angle Prediction"]
+    # markers = ["o","v","s"]
+    # colors = ["orange",'green','red']
+    # plt.figure()
+    # plt.plot(pielm_y[:,0],pielm_y[:,1])
+    # for i in [0,1,2]:
       
-        plt.scatter(data[i][:,0],data[i][:,1],alpha=0.5,marker=markers[i],color=colors[i])
-    plt.title("X Y coordinates of PINN Prediction")
-    plt.legend(labels)
-    plt.savefig("xyCoordinatesPINN.png")
-    for j in [0,1,2,3]:
-        plt.figure()
-        plt.plot(pielm_y[:,j])
-        for i in [0,1,2]:
-            plt.plot(data[i][:,j],alpha=0.5,marker=markers[i],color=colors[i])
-        plt.vlines(x=stop,colors="brown",ymin=0,ymax=pielm_y[:,j].max())
-        plt.title(states[j])
-        plt.legend(labels)
-        plt.savefig(states[j]+"PINN.png")
+    #     plt.scatter(data[i][:,0],data[i][:,1],alpha=0.5,marker=markers[i],color=colors[i],s=3)
+    # plt.title("X Y coordinates of PINN Prediction")
+    # plt.legend(labels)
+    # plt.savefig("xyCoordinatesPINN.png")
+    # for j in [0,1,2]:
+    #     plt.figure()
+    #     plt.plot(pielm_y[:,j])
+    #     for i in [0,1,2]:
+    #         plt.plot(data[i][:,j],alpha=0.5,marker=markers[i],color=colors[i])
+    #     plt.vlines(x=stop,colors="brown",ymin=0,ymax=pielm_y[:,j].max())
+    #     plt.title(states[j])
+    #     plt.legend(labels)
+    #     plt.savefig(states[j]+"PINN.png")
 
-        plt.figure()
-        plt.plot(pielm_y[:,j])
-        for i in [1,2]:
-            plt.plot(data[i][:,j],alpha=0.5,marker=markers[i],color=colors[i])
-        plt.title(states[j]+" higher performers")
-        plt.vlines(x=stop,colors="brown",ymin=0,ymax=pielm_y[:,j].max())
-        plt.legend(["Ground Truth Data","States Data and Derivatives Data but no Diff. Eq.", "States and Derivatives Data, and Diff. Eq."])
-        plt.savefig(states[j]+"focused_"+"PINN.png")
-
-
-        # for j in [0,1,2,3]:
-        # plt.figure()
-        # plt.plot(pielm_y_train[:,1])
-        # plt.plot(y_pred[:,1])
-        # plt.show()
-        # plt.figure()
-        # plt.plot(pielm_y_train[:,2])
-        # plt.plot(y_pred[:,2])
-        # plt.show()
-        # plt.figure()
-        # plt.plot(pielm_y_train[:,3])
-        # plt.plot(y_pred[:,3])
-        
+    #     plt.figure()
+    #     plt.plot(pielm_y[:,j])
+    #     for i in [1,2]:
+    #         plt.plot(data[i][:,j],alpha=0.5,marker=markers[i],color=colors[i])
+    #     plt.title(states[j]+" higher performers")
+    #     plt.vlines(x=stop,colors="brown",ymin=0,ymax=pielm_y[:,j].max())
+    #     plt.legend(["Ground Truth Data","States Data and Derivatives Data but no Diff. Eq.", "States and Derivatives Data, and Diff. Eq."])
+    #     plt.savefig(states[j]+"focused_"+"PINN.png")
+    # plt.figure()
+    # plt.plot(pielm_y[:,0],pielm_y[:,1])
+    # for i in [1,2]:
+      
+    #     plt.scatter(data[i][:,0],data[i][:,1],alpha=0.5,marker=markers[i],color=colors[i],s=3)
+    # plt.title("X Y coordinates of PINN Prediction")
+    # plt.legend(["Ground Truth Data","States Data and Derivatives Data but no Diff. Eq.", "States and Derivatives Data, and Diff. Eq."])
+    # plt.savefig("xyCoordinatesfocused_PINN.png")
+    xtfc_data={}
     
-    # y_pred={}
-    # for i in [1]:
-    #     y_pred[i]={}
-    #     for j in [1]:
-    #         lambda_ = 1-((j+4)/100)
-    #         length= 150*i
-    #         xtfc= XTFC(n_nodes,input_size,output_size,length=length,low_w=-1,high_w=1,low_b=-1,high_b=1,activation_function="tanh")
-    #         xtfc.train(accuracy, n_iterations,pielm_x_train,pielm_y_train,l_train,rho_train,steering_angle_train,slip_angle_train,speed_x,speed_y,heading_ratio,lambda_)
-    #         y_pred[i][j] = xtfc.pred(pielm_x_train).cpu().detach().numpy().T
+    for i in [1,2]:
+        
+        
+       
+        xtfc= XTFC(n_nodes,input_size,output_size,length,low_w=-1,high_w=1,low_b=-1,high_b=1,activation_function="tanh")
+        xtfc.train(accuracy, n_iterations,pielm_x,pielm_y,l,rho,steering_angle,slip_angle,speed_x,speed_y,heading_ratio,lambda_)
+        xtfc_data[i] = xtfc.pred(pielm_x).cpu().detach().numpy().T
+    
+    
     # plt.figure()
     # plt.scatter(pielm_y_train[:,0],pielm_y_train[:,1])
     # plt.scatter(y_pred[1][1][:,0],y_pred[1][1][:,1])
