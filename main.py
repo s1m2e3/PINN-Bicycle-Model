@@ -240,6 +240,65 @@ def main():
         plt.savefig(states[j]+"focused_"+"XTFC.png")
     
 
+    plt.figure()
+    plt.plot(pielm_y[:,0],pielm_y[:,1])
+    plt.plot(data[1][:,0],data[1][:,1],alpha=0.9,color="purple")
+    plt.plot(xtfc_data[1][:,0],xtfc_data[1][:,1],alpha=0.9,color="red")
+    plt.legend(["Ground Truth Data","PINN", "XTFC"])
+    plt.savefig("PINNvsXTFCcontrolsonlyxycoordinates.png")
+
+    plt.figure()
+    plt.plot(pielm_y[:,0])
+    plt.plot(data[1][:,0],alpha=0.9,color="purple")
+    plt.plot(xtfc_data[1][:,0],alpha=0.9,color="red")
+    plt.legend(["Ground Truth Data","PINN", "XTFC"])
+    plt.savefig("PINNvsXTFCcontrolsonlyx.png")
+
+    plt.figure()
+    plt.plot(pielm_y[:,1])
+    plt.plot(data[1][:,1],alpha=0.9,color="purple")
+    plt.plot(xtfc_data[1][:,1],alpha=0.9,color="red")
+    plt.legend(["Ground Truth Data","PINN", "XTFC"])
+    plt.savefig("PINNvsXTFCcontrolsonlyy.png")
+
+    plt.figure()
+    plt.plot(pielm_y[:,2])
+    plt.plot(data[1][:,2],alpha=0.9,color="purple")
+    plt.plot(xtfc_data[1][:,2],alpha=0.9,color="red")
+    plt.legend(["Ground Truth Data","PINN", "XTFC"])
+    plt.savefig("PINNvsXTFCcontrolsonlytheta.png")
+
+
+    plt.figure()
+    plt.plot(pielm_y[:,0],pielm_y[:,1])
+    plt.plot(data[2][:,0],data[2][:,1],alpha=0.9,color="purple")
+    plt.plot(xtfc_data[2][:,0],xtfc_data[2][:,1],alpha=0.9,color="red")
+    plt.legend(["Ground Truth Data","PINN", "XTFC"])
+    plt.savefig("PINNvsXTFCbothxycoordinates.png")
+
+    plt.figure()
+    plt.plot(pielm_y[:,0])
+    plt.plot(data[2][:,0],alpha=0.9,color="purple")
+    plt.plot(xtfc_data[2][:,0],alpha=0.9,color="red")
+    plt.legend(["Ground Truth Data","PINN", "XTFC"])
+    plt.savefig("PINNvsXTFCbothx.png")
+
+    plt.figure()
+    plt.plot(pielm_y[:,1])
+    plt.plot(data[2][:,1],alpha=0.9,color="purple")
+    plt.plot(xtfc_data[2][:,1],alpha=0.9,color="red")
+    plt.legend(["Ground Truth Data","PINN", "XTFC"])
+    plt.savefig("PINNvsXTFCbothy.png")
+
+    plt.figure()
+    plt.plot(pielm_y[:,2])
+    plt.plot(data[2][:,2],alpha=0.9,color="purple")
+    plt.plot(xtfc_data[2][:,2],alpha=0.9,color="red")
+    plt.legend(["Ground Truth Data","PINN", "XTFC"])
+    plt.savefig("PINNvsXTFCboththeta.png")
+
+
+    
     ##neural networks with previous states:
     
     # x = (test_df[["x","y","heading","steering_angle","speed","steering_angle_rate"]]-test_df[["x","y","heading","steering_angle","speed","steering_angle_rate"]].min())/(test_df[["x","y","heading","steering_angle","speed","steering_angle_rate"]].max()-test_df[["x","y","heading","steering_angle","speed","steering_angle_rate"]].min())
