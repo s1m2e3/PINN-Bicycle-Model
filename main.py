@@ -81,24 +81,24 @@ def main():
     df["x"]=df["x"]-df['x'].min()
     df["y"]=df["y"]-df["y"].min()
     numberPoints = len(df)
-    newNumberPoints = numberPoints*2
-    newDf={}
-    newTime=np.linspace(df["timestamp_posix"].iloc[0],df["timestamp_posix"].iloc[-1],newNumberPoints)
-    newDf["timestamp_posix"]=newTime
-    for col in ["heading","x",'y','speed_x',"speed_y","steering_angle","steering_angle_rate","slip_angle","heading_ratio","length"]:
-        f = interp1d(df['timestamp_posix'],df[col],kind="linear")
-        newDf[col] = f(newTime)
-        # plt.figure()
-        # plt.title(col)
-        # plt.plot(df["timestamp_posix"],df[col])
-        # plt.scatter(newDf["timestamp_posix"],newDf[col],color="red")
-        # plt.show()
+    newNumberPoints = numberPoints*5
+    # newDf={}
+    # newTime=np.linspace(df["timestamp_posix"].iloc[0],df["timestamp_posix"].iloc[-1],newNumberPoints)
+    # newDf["timestamp_posix"]=newTime
+    # for col in ["heading","x",'y','speed_x',"speed_y","steering_angle","steering_angle_rate","slip_angle","heading_ratio","length"]:
+    #     f = interp1d(df['timestamp_posix'],df[col],kind="linear")
+    #     newDf[col] = f(newTime)
+    #     # plt.figure()
+    #     # plt.title(col)
+    #     # plt.plot(df["timestamp_posix"],df[col])
+    #     # plt.scatter(newDf["timestamp_posix"],newDf[col],color="red")
+    #     # plt.show()
           
-    # ## neural networks with only time:
-    newDf = pd.DataFrame.from_dict(newDf)
-    # # print(newDf.head())
-    test_df = newDf
-    # test_df = df
+    # # ## neural networks with only time:
+    # newDf = pd.DataFrame.from_dict(newDf)
+    # # # print(newDf.head())
+    # test_df = newDf
+    test_df = df
     n_nodes = 80
     input_sequence_length = 50
     output_sequence_length = 10
@@ -143,138 +143,102 @@ def main():
     # speed_y= speed_y[:stop]
     # heading_ratio = heading_ratio[:stop]
     lambda_= 0.9
-    # data = {}
-    # for i in [0,1,2]:
-    #     if i == 2:
-    #         control = True
-    #         physic = True
-    #     elif i == 1:
-    #         control = True
-    #         physic = False
-    #     elif i == 0:
-    #         control = False
-    #         physic = False
-    #     pielm= PIELM(n_nodes,input_size,output_size,length,controls=control,physics=physic,low_w=-1,high_w=1,low_b=-1,high_b=1,activation_function="tanh")
-    #     pielm.train(accuracy, n_iterations,pielm_x,pielm_y,l,rho,steering_angle,slip_angle,speed_x,speed_y,heading_ratio,lambda_)
-    #     y_pred = pielm.pred(pielm_x).cpu().detach().numpy().T
-    #     data[i]=y_pred
-    # labels = ["Ground Truth Data","States Data, No Derivatives Data and no Diff. Eq.","States Data and Derivatives Data but no Diff. Eq.", "States and Derivatives Data, and Diff. Eq."]
-    # states = ["X Coordinate Prediction","Y Coordinate Prediction","Heading Angle Prediction","Steering Angle Prediction"]
-    # markers = ["o","v","s"]
-    # colors = ["orange",'green','red']
-    # plt.figure()
-    # plt.plot(pielm_y[:,0],pielm_y[:,1])
-    # for i in [0,1,2]:
+    data = {}
+    for i in [0,1,2]:
+        if i == 2:
+            control = True
+            physic = True
+        elif i == 1:
+            control = True
+            physic = False
+        elif i == 0:
+            control = False
+            physic = False
+        pielm= PIELM(n_nodes,input_size,output_size,length,controls=control,physics=physic,low_w=-1,high_w=1,low_b=-1,high_b=1,activation_function="tanh")
+        pielm.train(accuracy, n_iterations,pielm_x,pielm_y,l,rho,steering_angle,slip_angle,speed_x,speed_y,heading_ratio,lambda_)
+        y_pred = pielm.pred(pielm_x).cpu().detach().numpy().T
+        data[i]=y_pred
+    labels = ["Ground Truth Data","States Data, No Derivatives Data and no Diff. Eq.","States Data and Derivatives Data but no Diff. Eq.", "States and Derivatives Data, and Diff. Eq."]
+    states = ["X Coordinate Prediction","Y Coordinate Prediction","Heading Angle Prediction","Steering Angle Prediction"]
+    markers = ["o","v","s"]
+    colors = ["orange",'green','red']
+    plt.figure()
+    plt.plot(pielm_y[:,0],pielm_y[:,1])
+    for i in [0,1,2]:
       
-    #     plt.scatter(data[i][:,0],data[i][:,1],alpha=0.5,marker=markers[i],color=colors[i],s=3)
-    # plt.title("X Y coordinates of PINN Prediction")
-    # plt.legend(labels)
-    # plt.savefig("xyCoordinatesPINN.png")
-    # for j in [0,1,2]:
-    #     plt.figure()
-    #     plt.plot(pielm_y[:,j])
-    #     for i in [0,1,2]:
-    #         plt.plot(data[i][:,j],alpha=0.5,marker=markers[i],color=colors[i])
-    #     plt.vlines(x=stop,colors="brown",ymin=0,ymax=pielm_y[:,j].max())
-    #     plt.title(states[j])
-    #     plt.legend(labels)
-    #     plt.savefig(states[j]+"PINN.png")
+        plt.scatter(data[i][:,0],data[i][:,1],alpha=0.5,marker=markers[i],color=colors[i],s=3)
+    plt.title("X Y coordinates of PINN Prediction")
+    plt.legend(labels)
+    plt.savefig("xyCoordinatesPINN.png")
+    for j in [0,1,2]:
+        
+        plt.figure()
+        plt.plot(pielm_y[:,j])
+        for i in [0,1,2]:
+            plt.plot(data[i][:,j],alpha=0.5,marker=markers[i],color=colors[i])
+        xmin, xmax, ymin, ymax = plt.axis()
+        plt.vlines(x=stop,colors="brown",ymin=ymin,ymax=ymax)
+        plt.title(states[j])
+        plt.legend(labels)
+        plt.savefig(states[j]+"PINN.png")
 
-    #     plt.figure()
-    #     plt.plot(pielm_y[:,j])
-    #     for i in [1,2]:
-    #         plt.plot(data[i][:,j],alpha=0.5,marker=markers[i],color=colors[i])
-    #     plt.title(states[j]+" higher performers")
-    #     plt.vlines(x=stop,colors="brown",ymin=0,ymax=pielm_y[:,j].max())
-    #     plt.legend(["Ground Truth Data","States Data and Derivatives Data but no Diff. Eq.", "States and Derivatives Data, and Diff. Eq."])
-    #     plt.savefig(states[j]+"focused_"+"PINN.png")
-    # plt.figure()
-    # plt.plot(pielm_y[:,0],pielm_y[:,1])
-    # for i in [1,2]:
-      
-    #     plt.scatter(data[i][:,0],data[i][:,1],alpha=0.5,marker=markers[i],color=colors[i],s=3)
-    # plt.title("X Y coordinates of PINN Prediction")
-    # plt.legend(["Ground Truth Data","States Data and Derivatives Data but no Diff. Eq.", "States and Derivatives Data, and Diff. Eq."])
-    # plt.savefig("xyCoordinatesfocused_PINN.png")
-    xtfc_data={}
-    
+        plt.figure()
+        plt.plot(pielm_y[:,j])
+        for i in [1,2]:
+            plt.plot(data[i][:,j],alpha=0.5,marker=markers[i],color=colors[i])
+        plt.title(states[j]+" higher performers")
+        xmin, xmax, ymin, ymax = plt.axis()
+        plt.vlines(x=stop,colors="brown",ymin=ymin,ymax=ymax)
+        plt.legend(["Ground Truth Data","States Data and Derivatives Data but no Diff. Eq.", "States and Derivatives Data, and Diff. Eq."])
+        plt.savefig(states[j]+"focused_"+"PINN.png")
+    plt.figure()
+    plt.plot(pielm_y[:,0],pielm_y[:,1])
     for i in [1,2]:
-        
-        
-       
-        xtfc= XTFC(n_nodes,input_size,output_size,length,low_w=-1,high_w=1,low_b=-1,high_b=1,activation_function="tanh")
+      
+        plt.scatter(data[i][:,0],data[i][:,1],alpha=0.5,marker=markers[i],color=colors[i],s=3)
+    plt.title("X Y coordinates of PINN Prediction")
+    plt.legend(["Ground Truth Data","States Data and Derivatives Data but no Diff. Eq.", "States and Derivatives Data, and Diff. Eq."])
+    plt.savefig("xyCoordinatesfocused_PINN.png")
+    
+    xtfc_data={}
+    lambda_ = 0.9
+    for i in [1,2]:
+        if i == 2:
+            control = True
+            physic = True
+        elif i == 1:
+            control = True
+            physic = False
+        elif i == 0:
+            control = False
+            physic = False
+
+        xtfc= XTFC(n_nodes,input_size,output_size,length,controls=control,physics=physic,low_w=-1,high_w=1,low_b=-1,high_b=1,activation_function="tanh")
         xtfc.train(accuracy, n_iterations,pielm_x,pielm_y,l,rho,steering_angle,slip_angle,speed_x,speed_y,heading_ratio,lambda_)
         xtfc_data[i] = xtfc.pred(pielm_x).cpu().detach().numpy().T
+       
+    labels = ["Ground Truth Data","States Data and Derivatives Data but no Diff. Eq.", "States and Derivatives Data, and Diff. Eq."]
+    states = ["X Coordinate Prediction","Y Coordinate Prediction","Heading Angle Prediction","Steering Angle Prediction"]
+    markers = ["o","v","s"]
+    colors = ["orange",'green','red']
+    plt.figure()
+    plt.plot(pielm_y[:,0],pielm_y[:,1])
+    for i in [1,2]:
+        plt.scatter(xtfc_data[i][:,0],xtfc_data[i][:,1],alpha=0.5,marker=markers[i],color=colors[i],s=3)
+    plt.title("X Y coordinates of X-TFC Prediction")
+    plt.legend(labels)
+    plt.savefig("xyCoordinatesXTFC.png")
+    for j in [0,1,2]:
+        plt.figure()
+        plt.plot(pielm_y[:,j])
+        for i in [1,2]:
+            plt.plot(xtfc_data[i][:,j],alpha=0.5,marker=markers[i],color=colors[i])
+        xmin, xmax, ymin, ymax = plt.axis()
+        plt.title(states[j]+" higher performers XTFC")
+        plt.vlines(x=stop,colors="brown",ymin=ymin,ymax=ymax)
+        plt.legend(["Ground Truth Data","States Data and Derivatives Data but no Diff. Eq.", "States and Derivatives Data, and Diff. Eq."])
+        plt.savefig(states[j]+"focused_"+"XTFC.png")
     
-    
-    # plt.figure()
-    # plt.scatter(pielm_y_train[:,0],pielm_y_train[:,1])
-    # plt.scatter(y_pred[1][1][:,0],y_pred[1][1][:,1])
-    # plt.axvline(x=pielm_y_train[-length,0])
-    # plt.axhline(y=pielm_y_train[-length,1])
-    # plt.show()
-    # plt.figure()
-    # plt.plot(pielm_y_train[:,0])
-    # plt.plot(y_pred[1][1][:,0])
-    # plt.axvline(x=len(pielm_x_train)-length)
-    # plt.show()
-    # plt.figure()
-    # plt.plot(pielm_y_train[:,1])
-    # plt.plot(y_pred[1][1][:,1])
-    # plt.axvline(x=len(pielm_x_train)-length)
-    # plt.show()
-    # plt.figure()
-    # plt.plot(pielm_y_train[:,2])
-    # #plt.plot(y_pred[1][1][:,2])
-    # plt.show()
-    # plt.figure()
-    # # plt.plot(pielm_y_train[:,2])
-    # plt.plot(y_pred[1][1][:,2])
-    # plt.show()
-    # # plt.axvline(x=len(pielm_x_train)-length)
-    
-    
-    # for j in range[0]:
-    #     plt.figure()
-    #     plt.scatter(pielm_y_train[:,0],pielm_y_train[:,1])
-    #     for i in y_pred:
-    #         plt.scatter(y_pred[i][j][:,0],y_pred[i][j][:,1])
-    #         #plt.axvline(x=len(pielm_x_train-10))
-    #     plt.legend(["ground_truth","1_sec_ahead","3_sec_ahead","5_sec_ahead"])
-    #     plt.title("x and y coordinates alignment")
-    #     plt.savefig("alignment_pure_data.png" if j ==0 else "alignment_phys_plus_data.png")
-
-    #     plt.figure()
-    #     plt.plot(pielm_y_train[:,0])
-    #     for i in y_pred:
-    #         plt.plot(y_pred[i][j][:,0])
-    #         plt.axvline(x=len(pielm_x_train)-(10*(i+1)),c="black")
-    #     plt.legend(["ground_truth","1_sec_ahead","1_sec_cut","3_sec_ahead","3_sec_cut","5_sec_ahead","5_sec_cut"])
-    #     plt.title("x coordinates over time")
-    #     plt.savefig("x_coordinates_pure_data.png" if j ==0 else "x_coordinates_phys_plus_data.png")
-
-    #     plt.figure()
-    #     plt.plot(pielm_y_train[:,1])
-    #     for i in y_pred:
-    #         plt.plot(y_pred[i][j][:,1])
-    #         plt.axvline(x=len(pielm_x_train)-(10*(i+1)),c="black")
-    #     #plt.axvline(x=len(pielm_x_train-10))
-    #     plt.legend(["ground_truth","1_sec_ahead","1_sec_cut","3_sec_ahead","3_sec_cut","5_sec_ahead","5_sec_cut"])
-    #     plt.title("y coordinates over time")
-    #     plt.savefig("y_coordinates_pure_data.png" if j ==0 else "y_coordinates_phys_plus_data.png")
-
-    #     plt.figure()
-    #     plt.plot(pielm_y_train[:,2])
-    #     for i in y_pred:
-    #         plt.plot(y_pred[i][j][:,2])
-    #         plt.axvline(x=len(pielm_x_train)-(10*(i+1)),c="black")
-    #     #plt.axvline(x=len(pielm_x_train-10))
-    #     plt.legend(["ground_truth","1_sec_ahead","1_sec_cut","3_sec_ahead","3_sec_cut","5_sec_ahead","5_sec_cut"])
-    #     plt.title("heading over time")
-    #     plt.savefig("heading_pure_data.png" if j ==0 else "heading_phys_plus_data.png")
-
-
-    #xtfc.train()
 
     ##neural networks with previous states:
     
