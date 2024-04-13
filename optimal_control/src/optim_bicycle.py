@@ -1,4 +1,4 @@
-from bicycle_PINN import *
+from trajectory_prediction.src.bicycle_PINN import *
 import matplotlib.pyplot as plt
 
 class XTFC_veh(PIELM):

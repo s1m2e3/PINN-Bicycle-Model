@@ -1,8 +1,8 @@
 import numpy as np
 import pandas as pd
 from scipy.integrate import solve_ivp
-from bicycle_PINN import PIELM
-from bicycle_PINN import XTFC
+from trajectory_prediction.src.bicycle_PINN import PIELM
+from trajectory_prediction.src.bicycle_PINN import XTFC
 import datetime
 import utm
 #from process import prep_df_reg
@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 #from process import * 
 from datetime import datetime
-from model import *
+from trajectory_prediction.src.model import *
 from scipy.interpolate import interp1d
 
 def get_curvature(data):

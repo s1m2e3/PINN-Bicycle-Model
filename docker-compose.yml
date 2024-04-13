@@ -1,0 +1,8 @@
+version: '3.4'
+
+services:
+  pinnbicyclemodel:
+    image: pinnbicyclemodel
+    build:
+      context: .
+      dockerfile: ./Dockerfile

@@ -4,7 +4,7 @@ import datetime
 import utm
 import matplotlib.pyplot as plt
 import seaborn as sns
-from optim_bicycle import *
+from optimal_control.src.optim_bicycle import *
 from pykml import parser
 from pykml.factory import write_python_script_for_kml_document
 
