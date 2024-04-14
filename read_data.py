@@ -4,10 +4,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import geopandas as gpd
 import json
-import folium
 import matplotlib.pyplot as plt 
 import contextily as ctx
-from shapely.geometry import Point, LineString, shape
 
 
 
