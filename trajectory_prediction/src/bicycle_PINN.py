@@ -30,6 +30,8 @@ class Difference_RNN():
             optimizer.zero_grad()
             x_out = self.forward(x,u)
             output = loss(x_out,y)
+            if output.item() < accuracy:
+                break
             output.backward()
             loss_history.append(loss.item())
             optimizer.step()
@@ -74,14 +76,20 @@ class Non_Linear_Difference_RNN(Difference_RNN):
         loss = nn.MSELoss()
         for i in range(n_iterations):
             optimizer.zero_grad()
-            x_out = self.forward(x,u)
+            matrix_A,matrix_B = self.forward_matrices(x)
+            x_out = self.forward(matrix_A,matrix_B,x,u)
             output = loss(x_out,y)
+            if output.item() < accuracy:
+                break
             output.backward()
             loss_history.append(loss.item())
             optimizer.step()
         return loss_history
 
-
+    def predict(self,x,u):
+        matrix_A,matrix_B = self.forward_matrices(x)
+        x_out = self.forward(matrix_A,matrix_B,x,u)
+        return x_out
 class PIELM:
 
     def __init__(self,n_nodes,input_size,output_size,length,low_w=-5,high_w=5,low_b=-5,high_b=5,activation_function="tanh",controls=False,physics=False):

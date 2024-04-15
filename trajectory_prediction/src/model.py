@@ -94,7 +94,6 @@ class LSTM(nn.Module):
     def forward(self, x):
         if torch.cuda.is_available():
             dev = "cuda:0"
-            
         else:
             dev = "cpu"
         device = torch.device(dev)
@@ -120,7 +119,6 @@ class LSTM(nn.Module):
         device = torch.device(dev)
         x_train_data = torch.tensor(x_train_data,dtype=torch.float).to(device)
         y_train_data = torch.tensor(y_train_data,dtype=torch.float).to(device)
-        print(len(x_train_data))
         for epoch in range(num_epochs):
             
             self.optimizer.zero_grad()
