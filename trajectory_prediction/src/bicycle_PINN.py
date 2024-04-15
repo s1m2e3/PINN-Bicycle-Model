@@ -6,6 +6,82 @@ import datetime
 import torch.nn as nn
 import matplotlib.pyplot as plt
 
+class Difference_RNN():
+    def __init__(self,matrix_A_shape,matrix_B_shape,sequence_length):
+        self.matrix_A = torch.randn(matrix_A_shape,dtype=torch.float,requires_grad=True)
+        self.matrix_B = torch.randn(matrix_B_shape,dtype=torch.float,requires_grad=True)
+        self.matrix_W = torch.randn(matrix_A_shape,dtype=torch.float)
+        self.sequence_length= sequence_length
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    def forward(self,x_0,u):
+        """forward pass of difference equation, assume that the dimensions of the control u
+          are given by [sequence_length, number of controls]"""
+        x_out = torch.zeros((self.sequence_length, self.matrix_A.shape[0]), dtype=torch.float).to(self.device)
+        for i in range(self.sequence_length):
+            x_t = torch.matmul(x_0,self.matrix_A) + torch.matmul(u[:,i],self.matrix_B)
+            x_out[i,:] = x_t
+            x_0 = x_t
+        return x_out
+    def train(self,accuracy,n_iterations,x,u,y):
+        optimizer = torch.optim.LBFGS([self.matrix_A,self.matrix_B])
+        loss_history = []
+        loss = nn.MSELoss()
+        for i in range(n_iterations):
+            optimizer.zero_grad()
+            x_out = self.forward(x,u)
+            output = loss(x_out,y)
+            output.backward()
+            loss_history.append(loss.item())
+            optimizer.step()
+        return loss_history
+
+class Non_Linear_Difference_RNN(Difference_RNN):
+    def __init__(self, matrix_A_shape, matrix_B_shape, sequence_length, hidden_size):
+        super().__init__(matrix_A_shape, matrix_B_shape, sequence_length)
+        self.matrix_A_shape = matrix_A_shape
+        self.matrix_B_shape = matrix_B_shape
+        self.x_to_WA_1 = torch.randn(matrix_A_shape[0],hidden_size, dtype=torch.float, requires_grad=True)
+        self.b_WA_1 = torch.randn(1,hidden_size, dtype=torch.float, requires_grad=True)
+        self.matrix_A = torch.randn(hidden_size,np.product(matrix_A_shape), dtype=torch.float, requires_grad=True)
+        self.b_matrix_A = torch.randn(1,np.product(matrix_A_shape), dtype=torch.float, requires_grad=True)
+        self.x_to_WB_1 = torch.randn(matrix_A_shape[0],hidden_size, dtype=torch.float, requires_grad=True)
+        self.b_WB_1 = torch.randn(1,hidden_size, dtype=torch.float, requires_grad=True)
+        self.matrix_B = torch.randn(hidden_size,np.product(matrix_B_shape), dtype=torch.float, requires_grad=True)
+        self.b_matrix_B = torch.randn(1,np.product(matrix_B_shape), dtype=torch.float, requires_grad=True)            
+        self.hidden_size = hidden_size
+    
+    def forward_matrices(self,x_0):
+        x_0 = torch.matmul(x_0,self.x_to_WA_1) + self.b_WA_1
+        x_0 = torch.tanh(x_0)
+        matrix_A = torch.matmul(x_0,self.matrix_A) + self.b_matrix_A
+        x_0 = torch.matmul(x_0,self.x_to_WB_1) + self.b_WB_1
+        x_0 = torch.tanh(x_0)
+        matrix_B = torch.matmul(x_0,self.matrix_B) + self.b_matrix_B
+        return matrix_A.reshape(self.matrix_A_shape), matrix_B.reshape(self.matrix_B_shape)
+
+    def forward(self,matrix_A,matrix_B,x_0,u):
+        """forward pass of difference equation, assume that the dimensions of the control u
+          are given by [sequence_length, number of controls]"""
+        x_out = torch.zeros((self.sequence_length, matrix_A.shape[0]), dtype=torch.float).to(self.device)
+        for i in range(self.sequence_length):
+            x_t = torch.matmul(x_0,matrix_A) + torch.matmul(u[:,i],matrix_B)
+            x_out[i,:] = x_t
+            x_0 = x_t
+        return x_out
+    def train(self,accuracy,n_iterations,x,u,y):
+        optimizer = torch.optim.LBFGS([self.matrix_A,self.matrix_B])
+        loss_history = []
+        loss = nn.MSELoss()
+        for i in range(n_iterations):
+            optimizer.zero_grad()
+            x_out = self.forward(x,u)
+            output = loss(x_out,y)
+            output.backward()
+            loss_history.append(loss.item())
+            optimizer.step()
+        return loss_history
+
+
 class PIELM:
 
     def __init__(self,n_nodes,input_size,output_size,length,low_w=-5,high_w=5,low_b=-5,high_b=5,activation_function="tanh",controls=False,physics=False):
