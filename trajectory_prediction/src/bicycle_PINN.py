@@ -90,6 +90,7 @@ class Non_Linear_Difference_RNN(Difference_RNN):
         matrix_A,matrix_B = self.forward_matrices(x)
         x_out = self.forward(matrix_A,matrix_B,x,u)
         return x_out
+
 class PIELM:
 
     def __init__(self,n_nodes,input_size,output_size,length,low_w=-5,high_w=5,low_b=-5,high_b=5,activation_function="tanh",controls=False,physics=False):

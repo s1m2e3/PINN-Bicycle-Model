@@ -3,7 +3,8 @@ import pandas as pd
 import random
 import copy 
 import sys
-    
+from trajectory_prediction.src.bicycle_PINN import Difference_RNN,Non_Linear_Difference_RNN
+from trajectory_prediction.src.model import LSTM
 def prepare_data_for_difference(x,u,y,sequence_length,model_type):
     prep_data = {}
     x = np.concat((x,y),axis=1)
@@ -93,7 +94,7 @@ def test_model(model,test,model_type,sequence_length):
 
 if __name__=="__main__":
     model_type = sys.argv[1]
-    sequence_length = int(sys.argv[2])
+    # sequence_length = int(sys.argv[2])
     data = pd.read_csv("data/edited_trajectory.csv")
     trajectories = []
     for id in data['id'].unique():
@@ -104,15 +105,20 @@ if __name__=="__main__":
     train_len = int(len(trajectories)*0.7)
     train = trajectories[:train_len]
     test = trajectories[train_len:]
-    
+    sequence_length=10
+    hidden_size = 32
+    matrix_A_shape = (3,3)
+    matrix_B_shape = (3,2)
+    num_layers = 2
     if model_type == 'non_linear_continuous':
-        model = PINN()
+        pass
     elif model_type == 'non_linear_difference':
         model = Non_Linear_Difference_RNN(matrix_A_shape,matrix_B_shape,sequence_length,hidden_size)
     elif model_type == 'linear_difference':
-        model = Difference_RNN(matrix_A_shape,matrix_B_shape,sequence_length,hidden_size)
+        model = Difference_RNN(matrix_A_shape,matrix_B_shape,sequence_length)
     elif model_type == 'lstm':
-        model = LSTM()
+        pass
+        # model = LSTM(input_size, hidden_size, num_layers, output_size,input_sequence_length,output_sequence_length)
     else:
         sys.exit(1)
     model = train_model(model,train,model_type,sequence_length)
