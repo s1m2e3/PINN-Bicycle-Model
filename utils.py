@@ -10,11 +10,17 @@ import matplotlib.pyplot as plt
 
 def train_loop(x,u,y,timedeltas,model,model_type):
     x = torch.from_numpy(x).float().to(model.device)
-    x = torch.reshape(x,(1,len(x)))
     u = torch.from_numpy(u).float().to(model.device)
-    u = torch.transpose(u,0,1)
     y = torch.from_numpy(y).float().to(model.device)
     timedeltas = torch.from_numpy(timedeltas).float().to(model.device)
+    if 'non_linear' not in model_type:
+        x = torch.reshape(x,(1,len(x)))
+        u = torch.transpose(u,0,1)
+    elif 'non_linear' in model_type:
+        x_pass = x[:,:,0].reshape(x.shape[0],x.shape[1],1)
+        timedeltas = timedeltas.reshape(timedeltas.shape[0],timedeltas.shape[1],1)
+        u = torch.concat((u,x_pass),axis=2)
+        u = torch.concat((u,timedeltas),axis=2)
     loss = nn.MSELoss()
     clip_value = 0.1
     lr = 1e-3
@@ -23,38 +29,34 @@ def train_loop(x,u,y,timedeltas,model,model_type):
     
     for i in range(1000):
         optimizer.zero_grad()
-        # if 'non_linear' in model_type:
-        #     u = 
         x_out = model.forward(x,u)
         output = loss(x_out,y)
         
         if  i==999:
+            print(x_out.shape,y.shape)
             plt.figure(figsize=(20,10))
             plt.subplot(131)
-            plt.plot(x_out.detach().cpu().numpy()[:,0])
-            plt.plot(y.detach().cpu().numpy()[:,0])
+            plt.plot(x_out.detach().cpu().numpy()[:,0,0])
+            plt.plot(y.detach().cpu().numpy()[:,0,0])
             plt.subplot(132)
-            plt.plot(x_out.detach().cpu().numpy()[:,1])
-            plt.plot(y.detach().cpu().numpy()[:,1])
+            plt.plot(x_out.detach().cpu().numpy()[:,0,1])
+            plt.plot(y.detach().cpu().numpy()[:,0,1])
             plt.subplot(133)
-            plt.plot(x_out.detach().cpu().numpy()[:,0],x_out.detach().cpu().numpy()[:,1])
-            plt.plot(y.detach().cpu().numpy()[:,0],y.detach().cpu().numpy()[:,1])
+            plt.plot(x_out.detach().cpu().numpy()[:,0,0],x_out.detach().cpu().numpy()[:,0,1])
+            plt.plot(y.detach().cpu().numpy()[:,0,0],y.detach().cpu().numpy()[:,0,1])
             plt.show()
-        if i % 10 == 0:
+        if i % 100 == 0:
             print(f"Epoch {i+1}: Loss = {output:.6f}")
         if 'PINN' in model_type:
             x_out = model.forward_PINN(x,u,timedeltas)
-        output+= loss(x_out,torch.zeros(x_out.shape).to(model.device))
+            output+= loss(x_out,torch.zeros(x_out.shape).to(model.device))
         if output.item() < 1e-3:
             break
         output.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), clip_value)
         optimizer.step()
-        
     
     torch.save(model.state_dict(), './models/'+model_type+'.pth')
-        
-    
 
 
 def numerical_derivative(f,timestamps,timestamps_delta):
@@ -69,7 +71,6 @@ def numerical_derivative(f,timestamps,timestamps_delta):
     return num_der
 def prepare_data_for_difference(x,u,y,timedeltas,sequence_length,model_type):
     prep_data = {}
-    
     x = pd.concat((x,y),axis=1)
     x = np.array(x)
     u = np.array(u)
@@ -79,7 +80,7 @@ def prepare_data_for_difference(x,u,y,timedeltas,sequence_length,model_type):
     y = y[1:,:]
     u = u[0:-1,:]
     
-    timedeltas = timedeltas[0:-1]
+    timedeltas = timedeltas[1:]
     # if model_type == 'non_linear_difference':
     #     for i in range(len(u)):
     #         prep_data[i] = [x[i,:],u[i:i+sequence_length,:],y[i:i+sequence_length,:]]
@@ -102,25 +103,25 @@ def prepare_data_for_recurrent(x,u,y,timedeltas,sequence_length):
     x = np.array(x)
     u = np.array(u)
     y = np.array(y)
-    y = copy.deepcopy(x)
+    timedeltas = np.array(timedeltas)
     x = x[0:-1,:]
     y = y[1:,:]
     u = u[0:-1,:]
-    print(x.shape,u.shape,y.shape)
-    new_x = np.zeros((x.shape[0],sequence_length,x.shape[1]))
-    new_u = np.zeros((u.shape[0],sequence_length,u.shape[1]))
-    new_y = np.zeros((y.shape[0],sequence_length,y.shape[1]))
-    for i in [0]:
-        for j in range(len(sequence_length)):    
-            new_x[i,j,:]=x[i,:]
-            new_u[i,j,:]=u[i,:]
-            new_y[i,j,:]=y[i,:]
-    return new_x,new_u,new_y
+    timedeltas = timedeltas[1:]
+    new_x = np.zeros((sequence_length,x.shape[0]-sequence_length,x.shape[1]))
+    new_u = np.zeros((sequence_length,u.shape[0]-sequence_length,u.shape[1]))
+    new_y = np.zeros((sequence_length,y.shape[0]-sequence_length,y.shape[1]))
+    new_timedeltas = np.zeros((sequence_length,timedeltas.shape[0]-sequence_length))
+    for i in range(x.shape[0]-sequence_length-1):
+        new_x[:,i,:]=x[i:i+sequence_length,:]
+        new_u[:,i,:]=u[i:i+sequence_length,:]
+        new_y[:,i,:]=y[i:i+sequence_length,:]
+        new_timedeltas[:,i]=timedeltas[i:i+sequence_length]
+    return [new_x,new_u,new_y,new_timedeltas]
 
 def train_model(model,train_data,model_type,sequence_length):
     
-    for trajectory in [train_data[0]]:
-
+    for trajectory in train_data:
         if model_type == 'PINN_linear_difference' or model_type == 'linear_difference':   
             x = trajectory['timestamp']
             y = trajectory[['x_coord','y_coord']]
@@ -132,7 +133,7 @@ def train_model(model,train_data,model_type,sequence_length):
                 u = prep[row][1]
                 y = prep[row][2]
                 timedeltas = prep[row][3]
-                train_loop(model,x,y,u,timedeltas,sequence_length,model_type)
+                train_loop(x,u,y,timedeltas,model,model_type)
 
         elif model_type == 'non_linear_difference' or model_type == 'PINN_non_linear_difference':
             x = trajectory['timestamp']
@@ -140,11 +141,11 @@ def train_model(model,train_data,model_type,sequence_length):
             u = trajectory[['speed','heading']]
             timedeltas = trajectory['delta_timestamps']
             prep = prepare_data_for_recurrent(x,u,y,timedeltas,sequence_length)
-            for row in prep:
-                x = prep[row][0]
-                u = prep[row][1]
-                y = prep[row][2]
-                train_loop(model,x,y,u,timedeltas,sequence_length)
+            x = prep[0]
+            u = prep[1]
+            y = prep[2]
+            timedeltas = prep[3]
+            train_loop(x,u,y,timedeltas,model,model_type)
 
 
 

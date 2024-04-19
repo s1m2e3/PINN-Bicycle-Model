@@ -49,37 +49,53 @@ class PINN_Difference_RNN(Difference_RNN):
 class Non_Linear_Difference_RNN(nn.Module):
     def __init__(self,input_size,hidden_size,output_size):
         super(Non_Linear_Difference_RNN, self).__init__()
-       
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        self.rnn = nn.RNN(input_size=input_size, hidden_size=hidden_size, batch_first=True).to(self.device)
         
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.rnn = nn.RNN(input_size=input_size, hidden_size=output_size, batch_first=False,nonlinearity='relu').to(self.device)
+        self.linear = nn.Linear(output_size,hidden_size).to(self.device)
+        self.linear2 = nn.Linear(hidden_size,hidden_size).to(self.device)
+        self.linear3 = nn.Linear(hidden_size,output_size).to(self.device)
     def forward(self,h_0,u):
         """forward pass of difference equation, assume that the dimensions of the control u
           are given by [sequence_length, number of controls]"""
-        print(h_0.shape,u.shape)
-        output,hn = self.rnn(h_0,u)
+        h_0 = h_0[0,:,1:]
+        h_0 = h_0.reshape(1,h_0.shape[0],h_0.shape[1]).contiguous()
+        x_out = torch.zeros((h_0.shape[0] ,h_0.shape[1], self.rnn.hidden_size), dtype=torch.float).to(self.device)
+        output,hn = self.rnn(u,h_0)
+        output = self.linear(output)
+        output = torch.relu(output)
+        output = self.linear2(output)
+        output = torch.relu(output)
+        output = self.linear3(output)
         return output
 
-class PINN_Non_Linear_Difference_RNN(Difference_RNN):
-    def __init__(self,matrix_A_shape,matrix_B_shape):
-        super(PINN_Difference_RNN, self).__init__(matrix_A_shape,matrix_B_shape)
+class PINN_Non_Linear_Difference_RNN(Non_Linear_Difference_RNN):
+    def __init__(self,input_size,hidden_size,output_size):
+        super(PINN_Non_Linear_Difference_RNN, self).__init__(input_size,hidden_size,output_size)
         
+    def forward_PINN(self,h_0,u,timedelta):
         
-        
-    def forward_PINN(self,x_0,u,timedelta):
         """forward pass of difference equation, assume that the dimensions of the control u
           are given by [sequence_length, number of controls]"""
-        x_out = torch.zeros((u.shape[1], self.matrix_A_shape[0]), dtype=torch.float).to(self.device)
-        for i in range(u.shape[1]):
-            x_t = self.matrix_A(x_0) + self.matrix_B(u[:,i])
-            x = x_0[0,0] + u[0,i]*torch.cos(u[1,i]) * timedelta[i]
-            y = x_0[0,1] + u[0,i]*torch.sin(u[1,i]) * timedelta[i]
-            pinn_x_t = torch.tensor([x,y],dtype=torch.float).to(self.device)
-            x_out[i,:] = pinn_x_t-x_t
-            x_0 = x_t
-        return x_out
+        h_0 = h_0[0,:,1:]
+        h_0 = h_0.reshape(1,h_0.shape[0],h_0.shape[1]).contiguous()
+        
+        output,hn = self.rnn(u,h_0)
+        output = self.linear(output)
+        output = torch.relu(output)
+        output = self.linear2(output)
+        output = torch.relu(output)
+        output = self.linear3(output)
+        
+        output_diff_equation = torch.zeros(size = output.shape, dtype=torch.float).to(self.device)
+        output_diff_equation[0,:][:,0] = output[0,:][:,0] - (h_0[0,:][:,0] + u[0,:][:,0]*torch.cos(u[0,:][:,1]) * u[0,:][:,3])
+        output_diff_equation[0,:][:,1] = output[0,:][:,1] - (h_0[0,:][:,1] + u[0,:][:,0]*torch.sin(u[0,:][:,1]) * u[0,:][:,3])
+        
+        output_diff_equation[1:,:][:,:,0] = output[1:,:][:,:,0] - (output[0:-1,:][:,:,0] + u[1:,:][:,:,0]*torch.cos(u[1:,:][:,:,1]) * u[1:,:][:,:,3])
+        output_diff_equation[1:,:][:,:,1] = output[1:,:][:,:,1] - (output[0:-1,:][:,:,1] + u[1:,:][:,:,0]*torch.sin(u[1:,:][:,:,1]) * u[1:,:][:,:,3])
 
 
+        return output_diff_equation
 
 
 
