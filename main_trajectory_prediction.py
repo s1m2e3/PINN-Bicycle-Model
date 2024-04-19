@@ -13,13 +13,14 @@ if __name__=="__main__":
     model_type = sys.argv[1]
     data = pd.read_csv("data/edited_trajectory.csv")
     sequence_length=50
+    sub_sequence = 20
     trajectories = []
     for id in data['id'].unique():
         sub_df = data[data['id']==id]
         for trajectory in sub_df['trajectory'].unique():
             if len(sub_df[sub_df['trajectory']==trajectory])>=sequence_length:
                 trajectories.append(sub_df[sub_df['trajectory']==trajectory])
-    random.shuffle(trajectories)
+    # random.shuffle(trajectories)
     train_len = int(len(trajectories)*0.7)
     train = trajectories[:train_len]
     test = trajectories[train_len:]
@@ -69,7 +70,7 @@ if __name__=="__main__":
         sys.exit(1)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device=device)
-    model = train_model(model,train,model_type,sequence_length)
+    model = train_model(model,train,model_type,sequence_length,sub_sequence)
     # predict = test_model(model,test,model_type,sequence_length)
     # predict = np.array(predict)
     # with open("./data/predictions_" + model_type + "_" + str(sequence_length) + ".csv", "w") as f:

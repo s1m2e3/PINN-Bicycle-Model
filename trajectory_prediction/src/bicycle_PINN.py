@@ -30,8 +30,6 @@ class PINN_Difference_RNN(Difference_RNN):
     def __init__(self,matrix_A_shape,matrix_B_shape):
         super(PINN_Difference_RNN, self).__init__(matrix_A_shape,matrix_B_shape)
         
-        
-        
     def forward_PINN(self,x_0,u,timedelta):
         """forward pass of difference equation, assume that the dimensions of the control u
           are given by [sequence_length, number of controls]"""
@@ -51,6 +49,8 @@ class Non_Linear_Difference_RNN(nn.Module):
         super(Non_Linear_Difference_RNN, self).__init__()
         
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.pre_rnn = nn.Linear(input_size,hidden_size).to(self.device)
+        self.pre_rnn2 = nn.Linear(hidden_size,input_size).to(self.device)
         self.rnn = nn.RNN(input_size=input_size, hidden_size=output_size, batch_first=False,nonlinearity='relu').to(self.device)
         self.linear = nn.Linear(output_size,hidden_size).to(self.device)
         self.linear2 = nn.Linear(hidden_size,hidden_size).to(self.device)
@@ -58,9 +58,13 @@ class Non_Linear_Difference_RNN(nn.Module):
     def forward(self,h_0,u):
         """forward pass of difference equation, assume that the dimensions of the control u
           are given by [sequence_length, number of controls]"""
+        
         h_0 = h_0[0,:,1:]
         h_0 = h_0.reshape(1,h_0.shape[0],h_0.shape[1]).contiguous()
         x_out = torch.zeros((h_0.shape[0] ,h_0.shape[1], self.rnn.hidden_size), dtype=torch.float).to(self.device)
+        output = self.pre_rnn(u)
+        output = torch.relu(output)
+        output = self.pre_rnn2(output)
         output,hn = self.rnn(u,h_0)
         output = self.linear(output)
         output = torch.relu(output)

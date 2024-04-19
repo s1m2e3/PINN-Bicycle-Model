@@ -5,10 +5,10 @@ import torch.nn as nn
 import torch.optim as optim
 import torch 
 import matplotlib.pyplot as plt
+import random
+import time
 
-
-
-def train_loop(x,u,y,timedeltas,model,model_type):
+def train_loop(x,u,y,timedeltas,model,model_type,sub_sequence):
     x = torch.from_numpy(x).float().to(model.device)
     u = torch.from_numpy(u).float().to(model.device)
     y = torch.from_numpy(y).float().to(model.device)
@@ -26,14 +26,13 @@ def train_loop(x,u,y,timedeltas,model,model_type):
     lr = 1e-3
     model.to(model.device)
     optimizer = optim.Adam(model.parameters(), lr=lr)
-    
-    for i in range(1000):
+    sub_set = random.randint(0, x.shape[0]-sub_sequence)
+    time = time.time()
+    for i in range(10000):
         optimizer.zero_grad()
         x_out = model.forward(x,u)
-        output = loss(x_out,y)
-        
-        if  i==999:
-            print(x_out.shape,y.shape)
+        output = loss(x_out[sub_set:sub_set+sub_sequence,:,:],y[sub_set:sub_set+sub_sequence,:,:])
+        if  i==9999:
             plt.figure(figsize=(20,10))
             plt.subplot(131)
             plt.plot(x_out.detach().cpu().numpy()[:,0,0])
@@ -45,7 +44,7 @@ def train_loop(x,u,y,timedeltas,model,model_type):
             plt.plot(x_out.detach().cpu().numpy()[:,0,0],x_out.detach().cpu().numpy()[:,0,1])
             plt.plot(y.detach().cpu().numpy()[:,0,0],y.detach().cpu().numpy()[:,0,1])
             plt.show()
-        if i % 100 == 0:
+        if i % 1000 == 0:
             print(f"Epoch {i+1}: Loss = {output:.6f}")
         if 'PINN' in model_type:
             x_out = model.forward_PINN(x,u,timedeltas)
@@ -57,8 +56,7 @@ def train_loop(x,u,y,timedeltas,model,model_type):
         optimizer.step()
     
     torch.save(model.state_dict(), './models/'+model_type+'.pth')
-
-
+    
 def numerical_derivative(f,timestamps,timestamps_delta):
     f=np.array(f)
     timestamps=np.array(timestamps)
@@ -117,11 +115,12 @@ def prepare_data_for_recurrent(x,u,y,timedeltas,sequence_length):
         new_u[:,i,:]=u[i:i+sequence_length,:]
         new_y[:,i,:]=y[i:i+sequence_length,:]
         new_timedeltas[:,i]=timedeltas[i:i+sequence_length]
+    
     return [new_x,new_u,new_y,new_timedeltas]
 
-def train_model(model,train_data,model_type,sequence_length):
+def train_model(model,train_data,model_type,sequence_length,sub_sequence):
     
-    for trajectory in train_data:
+    for trajectory in train_data[0:5]:
         if model_type == 'PINN_linear_difference' or model_type == 'linear_difference':   
             x = trajectory['timestamp']
             y = trajectory[['x_coord','y_coord']]
@@ -133,7 +132,7 @@ def train_model(model,train_data,model_type,sequence_length):
                 u = prep[row][1]
                 y = prep[row][2]
                 timedeltas = prep[row][3]
-                train_loop(x,u,y,timedeltas,model,model_type)
+                train_loop(x,u,y,timedeltas,model,model_type,sub_sequence)
 
         elif model_type == 'non_linear_difference' or model_type == 'PINN_non_linear_difference':
             x = trajectory['timestamp']
@@ -145,10 +144,7 @@ def train_model(model,train_data,model_type,sequence_length):
             u = prep[1]
             y = prep[2]
             timedeltas = prep[3]
-            train_loop(x,u,y,timedeltas,model,model_type)
-
-
-
+            train_loop(x,u,y,timedeltas,model,model_type,sub_sequence)
 
         elif model_type == 'lstm':
             x,u,y = prepare_data_for_recurrent(train_data[trajectory][0],train_data[trajectory][1],train_data[trajectory][2],sequence_length,model_type)
