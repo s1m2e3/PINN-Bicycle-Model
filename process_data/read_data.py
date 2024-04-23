@@ -9,7 +9,7 @@ import contextily as ctx
 
 
 
-data = pd.read_csv("data/Tampa_CV_Pilot_Basic_Safety_Message__BSM__Sample.csv")
+data = pd.read_csv("../data/Tampa_CV_Pilot_Basic_Safety_Message__BSM__Sample.csv")
 data = data[['metadata_generatedAt','coreData_id','coreData_position_lat','coreData_position_long','coreData_angle','coreData_speed','coreData_heading','coreData_size','metadata_generatedAt_timeOfDay','coreData_secMark']]
 data['timestamp'] = pd.to_datetime(data['metadata_generatedAt'],unit='ns')
 data['timestamp']=data['timestamp'].astype(int)/10**9
@@ -29,7 +29,7 @@ data['angle']=data['angle'].astype(float)*1.5
 
 data.sort_values(by=['timestamp','id'],inplace=True)
 data = data.reset_index(drop=True)
-data.to_csv('./data/edited.csv')
+data.to_csv('../data/edited.csv')
 
 
 

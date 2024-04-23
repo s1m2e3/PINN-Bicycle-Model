@@ -61,6 +61,7 @@ class Non_Linear_Difference_RNN(nn.Module):
         
         h_0 = h_0[0,:,1:]
         h_0 = h_0.reshape(1,h_0.shape[0],h_0.shape[1]).contiguous()
+        h_0 = torch.zeros((h_0.shape), dtype=torch.float).to(self.device)
         x_out = torch.zeros((h_0.shape[0] ,h_0.shape[1], self.rnn.hidden_size), dtype=torch.float).to(self.device)
         output = self.pre_rnn(u)
         output = torch.relu(output)
@@ -83,6 +84,7 @@ class PINN_Non_Linear_Difference_RNN(Non_Linear_Difference_RNN):
           are given by [sequence_length, number of controls]"""
         h_0 = h_0[0,:,1:]
         h_0 = h_0.reshape(1,h_0.shape[0],h_0.shape[1]).contiguous()
+        h_0 = torch.zeros((h_0.shape), dtype=torch.float).to(self.device)
         
         output,hn = self.rnn(u,h_0)
         output = self.linear(output)

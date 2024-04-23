@@ -27,35 +27,38 @@ def train_loop(x,u,y,timedeltas,model,model_type,sub_sequence):
     model.to(model.device)
     optimizer = optim.Adam(model.parameters(), lr=lr)
     sub_set = random.randint(0, x.shape[0]-sub_sequence)
-    time = time.time()
-    for i in range(10000):
+    # time = time.time()
+    for i in range(100000):
         optimizer.zero_grad()
         x_out = model.forward(x,u)
         output = loss(x_out[sub_set:sub_set+sub_sequence,:,:],y[sub_set:sub_set+sub_sequence,:,:])
-        if  i==9999:
-            plt.figure(figsize=(20,10))
-            plt.subplot(131)
-            plt.plot(x_out.detach().cpu().numpy()[:,0,0])
-            plt.plot(y.detach().cpu().numpy()[:,0,0])
-            plt.subplot(132)
-            plt.plot(x_out.detach().cpu().numpy()[:,0,1])
-            plt.plot(y.detach().cpu().numpy()[:,0,1])
-            plt.subplot(133)
-            plt.plot(x_out.detach().cpu().numpy()[:,0,0],x_out.detach().cpu().numpy()[:,0,1])
-            plt.plot(y.detach().cpu().numpy()[:,0,0],y.detach().cpu().numpy()[:,0,1])
-            plt.show()
-        if i % 1000 == 0:
+        
+        # if  i==0:
+        #     plt.figure(figsize=(20,10))
+        #     plt.subplot(131)
+        #     plt.plot(x_out.detach().cpu().numpy()[:,0,0])
+        #     plt.plot(y.detach().cpu().numpy()[:,0,0])
+        #     plt.subplot(132)
+        #     plt.plot(x_out.detach().cpu().numpy()[:,0,1])
+        #     plt.plot(y.detach().cpu().numpy()[:,0,1])
+        #     plt.subplot(133)
+        #     plt.plot(x_out.detach().cpu().numpy()[:,0,0],x_out.detach().cpu().numpy()[:,0,1])
+        #     plt.plot(y.detach().cpu().numpy()[:,0,0],y.detach().cpu().numpy()[:,0,1])
+        #     plt.show()
+        if i  %100 == 0:
             print(f"Epoch {i+1}: Loss = {output:.6f}")
         if 'PINN' in model_type:
             x_out = model.forward_PINN(x,u,timedeltas)
-            output+= loss(x_out,torch.zeros(x_out.shape).to(model.device))
+            phis_loss = loss(x_out,torch.zeros(x_out.shape).to(model.device))
+            print(f"Epoch {i+1} Difference Equation: Loss = {phis_loss:.6f}")
+            output+= phis_loss
         if output.item() < 1e-3:
             break
         output.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), clip_value)
         optimizer.step()
-    
-    torch.save(model.state_dict(), './models/'+model_type+'.pth')
+        if i %100 == 0:
+            torch.save(model.state_dict(), './models/'+model_type+'.pth')
     
 def numerical_derivative(f,timestamps,timestamps_delta):
     f=np.array(f)
@@ -120,7 +123,11 @@ def prepare_data_for_recurrent(x,u,y,timedeltas,sequence_length):
 
 def train_model(model,train_data,model_type,sequence_length,sub_sequence):
     
-    for trajectory in train_data[0:5]:
+    trajectories_x = []
+    trajectories_u = []
+    trajectories_y = []
+    trajectories_timedeltas = []
+    for trajectory in train_data :
         if model_type == 'PINN_linear_difference' or model_type == 'linear_difference':   
             x = trajectory['timestamp']
             y = trajectory[['x_coord','y_coord']]
@@ -132,7 +139,7 @@ def train_model(model,train_data,model_type,sequence_length,sub_sequence):
                 u = prep[row][1]
                 y = prep[row][2]
                 timedeltas = prep[row][3]
-                train_loop(x,u,y,timedeltas,model,model_type,sub_sequence)
+                # train_loop(x,u,y,timedeltas,model,model_type,sub_sequence)
 
         elif model_type == 'non_linear_difference' or model_type == 'PINN_non_linear_difference':
             x = trajectory['timestamp']
@@ -140,15 +147,29 @@ def train_model(model,train_data,model_type,sequence_length,sub_sequence):
             u = trajectory[['speed','heading']]
             timedeltas = trajectory['delta_timestamps']
             prep = prepare_data_for_recurrent(x,u,y,timedeltas,sequence_length)
-            x = prep[0]
-            u = prep[1]
-            y = prep[2]
-            timedeltas = prep[3]
-            train_loop(x,u,y,timedeltas,model,model_type,sub_sequence)
-
+            if len(trajectories_x) == 0:
+                trajectories_x=prep[0]
+                trajectories_u =prep[1]
+                trajectories_y =prep[2]
+                trajectories_timedeltas =prep[3]
+            else:
+                trajectories_x = np.concatenate((trajectories_x,prep[0]),axis=1)
+                trajectories_u = np.concatenate((trajectories_u,prep[1]),axis=1)
+                trajectories_y = np.concatenate((trajectories_y,prep[2]),axis=1)
+                trajectories_timedeltas = np.concatenate((trajectories_timedeltas,prep[3]),axis=1)
+            
         elif model_type == 'lstm':
             x,u,y = prepare_data_for_recurrent(train_data[trajectory][0],train_data[trajectory][1],train_data[trajectory][2],sequence_length,model_type)
             model.train(x,y,sequence_length)
+    
+    # Shuffle trajectories
+    # permutation = np.random.permutation(trajectories_x.shape[1])
+    # trajectories_x = trajectories_x[:, permutation, :]
+    # trajectories_u = trajectories_u[:, permutation, :]
+    # trajectories_y = trajectories_y[:, permutation, :]
+
+    train_loop(trajectories_x,trajectories_u,trajectories_y,trajectories_timedeltas,model,model_type,sub_sequence)
+
     return model
 
 def test_model(model,test,model_type,sequence_length):
