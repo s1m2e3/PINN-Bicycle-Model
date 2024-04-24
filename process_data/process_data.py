@@ -14,33 +14,25 @@ def interp_sub_traj(sub_traj_df):
     new_sub_traj_df = pd.DataFrame({'timestamp':new_timestamps})
     new_sub_traj_df['length'] = sub_traj_df['length'].iloc[0]
     new_sub_traj_df['delta_timestamps'] = 0.1
-    # fig, axes = plt.subplots(4, 1, sharex=True)
-    # for i, col in enumerate(['x_coord', 'y_coord', 'heading', 'speed']):
-    #     axes[i].scatter(sub_traj_df['timestamp'], sub_traj_df[col],  alpha=1)
-    # axes[2].set_ylim(-6.28, 6.28) # for heading
-    # axes[3].set_ylim(0, 40) # for speed
+    
     for i in ['x_coord', 'y_coord', 'heading', 'speed']:
         if i == 'timestamp':
             pass
         else:
             try:
-                tck = splrep(sub_traj_df['timestamp'],sub_traj_df[i],k=1,s=5)
+                tck = splrep(sub_traj_df['timestamp'],sub_traj_df[i],k=1,s=2)
             except RuntimeWarning as e:
                 print(f"Runtime warning for column {i}: {e}")
                 raise RuntimeWarning
             
-
+            
             new_y = splev(new_timestamps,tck, der = 0)
             if np.isnan(new_y).any():
                 raise RuntimeWarning
             new_sub_traj_df[i] = new_y
-            
+    
     sub_traj_df = new_sub_traj_df
-    trajectory = sub_traj_df
-    # for i, col in enumerate(['x_coord', 'y_coord', 'heading', 'speed']):
-    #     axes[i].scatter(trajectory['timestamp'], trajectory[col],  alpha=0.5)
-    #     print(trajectory[col])
-    # plt.show()
+    
     
     return sub_traj_df
 
@@ -66,6 +58,13 @@ gdf.loc[mask_1,'heading'] = 90-gdf.loc[mask_1,'heading']
 gdf.loc[mask_2,'heading'] = -(gdf.loc[mask_2,'heading']-90)
 
 gdf['heading'] = gdf['heading']*np.pi/180.0
+mask_1 = gdf['heading']>3.14
+
+gdf.loc[mask_1,'heading'] = -3.14+(gdf.loc[mask_1,'heading']-np.pi)
+mask_2 = gdf['heading']<-3.14
+gdf.loc[mask_2,'heading'] = 3.14+(gdf.loc[mask_2,'heading']+np.pi)
+
+
 
 for unique_id in unique_ids:
     sub_df = gdf[gdf['id']==unique_id]
@@ -85,7 +84,15 @@ for id in unique_ids:
     for trajectory in sub_plot['trajectory'].unique():
         
         sub_traj_df = sub_plot[sub_plot['trajectory']==trajectory]
-        if len(sub_traj_df)>30:
+        if len(sub_traj_df)>30 and sub_traj_df['speed'].mean()>5:
+            mask_1 = sub_traj_df['heading']>0.1
+            mask_2 = sub_traj_df['heading']<-0.1
+            if (mask_1.sum() > 0.1) and (mask_2.sum() > 0):
+                if mask_1.sum() > mask_2.sum():
+                    sub_traj_df.loc[mask_2,'heading'] = np.pi + (np.pi + sub_traj_df.loc[mask_2,'heading'])
+                else:
+                    sub_traj_df.loc[mask_1,'heading'] = -np.pi - (np.pi - sub_traj_df.loc[mask_1,'heading'])
+                
             try:
                 sub_traj_df = interp_sub_traj(sub_traj_df)
                 
@@ -102,15 +109,16 @@ for id in unique_ids:
                 sub_traj_df['trajectory_id'] = traj_count
                 traj_count = traj_count+1
                 traj=pd.concat((traj,sub_traj_df),axis=0)
-                print(len(traj))
-
+              
         else:
             pass
-        # sub_plot[sub_plot['trajectory']==trajectory] = sub_traj_df
-    # gdf[gdf['id']==id]=sub_plot
-# gdf=gdf[gdf['relevant_trajectory']==1]
-
-print(len(traj))
-traj.to_csv('../data/edited_trajectory.csv')
+trajectories = traj['trajectory_id'].unique()
+trajectories_test = list(np.random.choice(trajectories, len(trajectories)//3, replace=False))
+trajectories_train = [i for i in trajectories if i not in trajectories_test]
+print(trajectories_train,trajectories_test)
+trajectories_train = traj[traj['trajectory_id'].isin(trajectories_train)]
+trajectories_test = traj[traj['trajectory_id'].isin(trajectories_test)]
+trajectories_train.to_csv('../data/train.csv')
+trajectories_test.to_csv('../data/test.csv')
 
 

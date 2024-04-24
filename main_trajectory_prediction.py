@@ -16,19 +16,10 @@ if __name__=="__main__":
     sequence_length=30
     sub_sequence = 30
     trajectories = []
-    for id in data['id'].unique():
-        sub_df = data[data['id']==id]
-        for trajectory in sub_df['trajectory'].unique():
-            if len(sub_df[sub_df['trajectory']==trajectory])>=sequence_length:
-                trajectories.append(sub_df[sub_df['trajectory']==trajectory])
-                fig, axes = plt.subplots(4, 1, sharex=True)
-                for i, col in enumerate(['x_coord', 'y_coord', 'heading', 'speed']):
-                    for trajectory in trajectories:
-                        axes[i].plot(trajectory['timestamp'], trajectory[col], '-', alpha=0.2)
-                    axes[i].set_ylabel(col)
-                axes[-1].set_xlabel('timestamp')
-                plt.show()
-                plt.close()
+    for trajectory_id in data['trajectory_id'].unique():
+        sub_df = data[data['trajectory_id']==trajectory_id]
+        trajectories.append(sub_df)
+        
     # random.shuffle(trajectories)
     # train_len = int(len(trajectories)*0.7)
     # train = trajectories[:train_len]
