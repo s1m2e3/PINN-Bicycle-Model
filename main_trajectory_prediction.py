@@ -19,8 +19,9 @@ if __name__=="__main__":
     for trajectory_id in data['trajectory_id'].unique():
         sub_df = data[data['trajectory_id']==trajectory_id]
         trajectories.append(sub_df)
-        
-    # random.shuffle(trajectories)
+
+    input_size = 3    
+    random.shuffle(trajectories)
     # train_len = int(len(trajectories)*0.7)
     # train = trajectories[:train_len]
     # test = trajectories[train_len:]
