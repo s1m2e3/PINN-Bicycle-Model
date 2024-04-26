@@ -9,11 +9,10 @@ import torch
 if __name__=="__main__":
     model_type = sys.argv[1]
     train_data = pd.read_csv("data/train.csv")
-    input_size = 6 if 'non_linear_continuous' in model_type else 2
+    input_size = 3 if 'non_linear_continuous' in model_type else 2
     hidden_size = 256
     num_layers = 2
     output_size = 3
-    sequence_length = 30
     models_dir = './models/'
     model_path = models_dir+model_type+'.pth'
     
@@ -25,5 +24,5 @@ if __name__=="__main__":
         model.load_state_dict(torch.load(model_path))
         print("Model "+model_type +" loaded successfully!")
     train_data = remove_trajectory(train_data)
-    train_model(model,train_data,model_type,sequence_length)
+    train_model(model,train_data,model_type)
 

@@ -50,34 +50,47 @@ def train_loop(x,y,model,model_type,id):
     y = torch.from_numpy(y).double().to(model.device)
     loss = nn.MSELoss()
     
-    lr = 1e-3
+    lr = 1e-5
     model.to(model.device)
     optimizer = optim.Adam(model.parameters(), lr=lr)
     for i in range(10000):
         output = 0
         optimizer.zero_grad()
-        if 'difference' not in model_type:
-            x_out = model.forward(x)
-            output = loss(x_out,y)
+        if 'continuous' in model_type:
+            reg_loss = 0
+            for uid in unique_ids:
+                x_out = model.forward(x[id_ranges[uid][0]:id_ranges[uid][1]])
+                y_out = y[id_ranges[uid][0]:id_ranges[uid][1]].reshape(x_out.shape)
+                reg_loss += loss(x_out,y_out)
+                output+= reg_loss
+        
             if i  %100 == 0:
                 print(f"Epoch {i+1}: Loss = {output:.6f}")
-        if 'difference' in model_type:
+
+        if 'difference' in model_type and 'PINN_ONLY' not in model_type:
             difference_loss = 0
             for uid in unique_ids:
                 x_out = model.forward(x[id_ranges[uid][0]:id_ranges[uid][1]])
                 y_out = y[id_ranges[uid][0]:id_ranges[uid][1]].reshape(x_out.shape)
                 difference_loss += loss(x_out,y_out)
             output+= difference_loss 
-            if i  %100 == 0:
+            if i  %10 == 0:
                 print(f"Epoch {i+1}: Loss = {output:.6f}")
         if 'PINN' in model_type:
-            x_out = model.forward_PINN(x)
-            phis_loss = loss(x_out,torch.zeros(x_out.shape,dtype=torch.double).to(model.device))
-            if i  %100 == 0:
-                print(f"Epoch {i+1} Difference Equation: Loss = {phis_loss:.6f}")
+            if 'continuous' in model_type:
+                phis_loss = 0
+                for uid in unique_ids:
+                    x_out = model.forward_PINN(x[id_ranges[uid][0]:id_ranges[uid][1]])
+                    phis_loss += loss(x_out,torch.zeros(x_out.shape,dtype=torch.double).to(model.device))
+                    output+= phis_loss 
+            else:
+                x_out = model.forward_PINN(x)
+                phis_loss = loss(x_out,torch.zeros(x_out.shape,dtype=torch.double).to(model.device))
+                if i  %10 == 0:
+                    print(f"Epoch {i+1} Difference Equation: Loss = {phis_loss:.6f}")
             output+= phis_loss
         
-        if output.item() < 1e-3:
+        if output.item() < 1e-6:
             break
         output.backward()
         optimizer.step()
@@ -102,6 +115,8 @@ def train_model(model,train_data,model_type):
     id = train_data['trajectory_id'].reset_index(drop=True)
     x = np.array(x)
     y = np.array(y)
+    if 'continuous' in model_type:
+        x = x[:,0:3]
     x,normalizing_factor,x_min = normalize_x(x)
     model.set_normalizing_factor(normalizing_factor)
     model.set_x_min(x_min)

@@ -38,7 +38,7 @@ class GRU(nn.Module):
         output_diff_equation = torch.zeros(size = y.shape, dtype=torch.double).to(self.device)
         output_diff_equation[1:,0,0] =y[1:,0,0] - (y[0:-1,0,0]+torch.cos(y[0:-1,0,2])*0.1*x[1:,1])
         output_diff_equation[1:,0,1] =y[1:,0,1] - (y[0:-1,0,1]+torch.sin(y[0:-1,0,2])*0.1*x[1:,1])
-        output_diff_equation[1:,0,2] =y[1:,0,2] - (y[0:-1,0,2]+torch.tan(x[1:,2])*0.1*x[1:,1]/self.length[:,1:])
+        output_diff_equation[1:,0,2] =y[1:,0,2] - (y[0:-1,0,2]+torch.tan(x[1:,2])*0.1*x[1:,1]/self.length[:,1:]/100)
         
         return output_diff_equation
         
@@ -88,11 +88,12 @@ class PIELM(nn.Module):
     def forward_PINN(self,x):
         HBetas = self.forward(x)
         dH = self.get_dh(x)
-        dHBetas = self.linear(dH)*self.normalizing_factor[3:]
+        dHBetas = self.linear(dH)*self.normalizing_factor
         x = self.recover_x(x)
         output_diff_equation = torch.zeros(size = dHBetas.shape, dtype=torch.double).to(self.device)
+        
         speed = (dHBetas[:,0]**2+dHBetas[:,1]**2)**0.5
         output_diff_equation[:,0] = dHBetas[:,0] - torch.cos(HBetas[:,2]) * speed
         output_diff_equation[:,1] = dHBetas[:,1] - torch.sin(HBetas[:,2]) * speed
-        output_diff_equation[:,2] = dHBetas[:,2] - torch.tan(x[:,2]) * speed  / self.length
+        output_diff_equation[:,2] = dHBetas[:,2] - torch.tan(x[:,2]) * speed  / self.length.mean()/100
         return output_diff_equation
